@@ -1,0 +1,64 @@
+# Production overlay: TLS at the proxy, Docker secrets instead of environment variables,
+# resource limits, log rotation. Create the secrets first with scripts/init-secrets.sh.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+x-backend-prod-env: &backend-prod-env
+  DBW_ENV: production
+  DBW_COOKIE_SECURE: "true"
+  DBW_TRUSTED_PROXY_HOPS: "1"
+  DBW_ACTIVE_KEK_ID: ${DBW_ACTIVE_KEK_ID:-k1}
+  DBW_DATABASE_URL_FILE: /run/secrets/database_url
+  DBW_ENCRYPTION_KEYS_FILE: /run/secrets/encryption_keys
+  DBW_NETWORK_ALLOW_CIDRS: ${DBW_NETWORK_ALLOW_CIDRS:-["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16","fc00::/7"]}
+  DBW_METRICS_ENABLED: ${DBW_METRICS_ENABLED:-false}
+
+services:
+  db:
+    environment: !override
+      POSTGRES_USER: dbwrench
+      POSTGRES_DB: dbwrench
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    logging: *logging
+    deploy: { resources: { limits: { memory: 1g } } }
+
+  migrate:
+    image: dbwrench/backend:${DBW_VERSION:?set DBW_VERSION to the release you are deploying}
+    environment: !override
+      <<: *backend-prod-env
+    secrets: [database_url, encryption_keys]
+
+  backend:
+    image: dbwrench/backend:${DBW_VERSION:?set DBW_VERSION to the release you are deploying}
+    environment: !override
+      <<: *backend-prod-env
+    secrets: [database_url, encryption_keys]
+    extra_hosts: !reset []
+    logging: *logging
+    deploy: { resources: { limits: { memory: 1g, cpus: "2" } } }
+
+  frontend:
+    image: dbwrench/frontend:${DBW_VERSION:?set DBW_VERSION to the release you are deploying}
+    logging: *logging
+    deploy: { resources: { limits: { memory: 128m } } }
+
+  proxy:
+    volumes: !override
+      - ./deployment/nginx/proxy.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deployment/nginx/proxy-params.conf:/etc/nginx/dbwrench-proxy-params.conf:ro
+    ports: !override
+      - "${DBW_BIND:-0.0.0.0}:${DBW_HTTP_PORT:-80}:8080"
+      - "${DBW_BIND:-0.0.0.0}:${DBW_HTTPS_PORT:-443}:8443"
+    secrets: [tls_cert, tls_key]
+    logging: *logging
+    deploy: { resources: { limits: { memory: 128m } } }
+
+secrets:
+  postgres_password: { file: ./secrets/postgres_password }
+  database_url: { file: ./secrets/database_url }
+  encryption_keys: { file: ./secrets/encryption_keys }
+  tls_cert: { file: ./secrets/tls_cert.pem }
+  tls_key: { file: ./secrets/tls_key.pem }

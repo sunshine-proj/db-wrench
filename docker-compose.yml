@@ -1,0 +1,105 @@
+# DB Wrench: default stack (evaluation / development). HTTP on localhost only.
+# Production: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+name: dbwrench
+
+x-hardening: &hardening
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+
+x-backend-env: &backend-env
+  DBW_ENV: ${DBW_ENV:-development}
+  DBW_LOG_LEVEL: ${DBW_LOG_LEVEL:-INFO}
+  DBW_DATABASE_URL: postgresql+psycopg://dbwrench:${POSTGRES_PASSWORD:?run scripts/init-env.sh or set POSTGRES_PASSWORD in .env}@db:5432/dbwrench
+  DBW_ENCRYPTION_KEYS: ${DBW_ENCRYPTION_KEYS:?set DBW_ENCRYPTION_KEYS in .env}
+  DBW_ACTIVE_KEK_ID: ${DBW_ACTIVE_KEK_ID:-k1}
+  DBW_COOKIE_SECURE: ${DBW_COOKIE_SECURE:-false}
+  DBW_TRUSTED_PROXY_HOPS: "1"
+  DBW_NETWORK_ALLOW_CIDRS: ${DBW_NETWORK_ALLOW_CIDRS:-["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16","fc00::/7"]}
+  DBW_METRICS_ENABLED: ${DBW_METRICS_ENABLED:-false}
+
+services:
+  db:
+    image: postgres:17.6-alpine
+    <<: *hardening
+    cap_drop: []  # the postgres entrypoint needs to drop privileges itself
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    environment:
+      POSTGRES_USER: dbwrench
+      POSTGRES_DB: dbwrench
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/init-env.sh or set POSTGRES_PASSWORD in .env}
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbwrench -d dbwrench"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [app_net]
+
+  migrate:
+    build: ./backend
+    image: dbwrench/backend:${DBW_VERSION:-dev}
+    command: ["alembic", "upgrade", "head"]
+    environment: *backend-env
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [app_net]
+
+  backend:
+    build: ./backend
+    image: dbwrench/backend:${DBW_VERSION:-dev}
+    <<: *hardening
+    environment: *backend-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    read_only: true
+    tmpfs: [/tmp]
+    # app_net is internal (no internet). Managed databases are reached over `egress`, and every
+    # destination is still subject to the application's network policy.
+    networks: [app_net, egress]
+    # Lets connections target a database on the Docker host as host.docker.internal
+    # (allow its address in Network policy). Remove if not needed.
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  frontend:
+    build: ./frontend
+    image: dbwrench/frontend:${DBW_VERSION:-dev}
+    <<: *hardening
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [app_net]
+
+  proxy:
+    image: nginxinc/nginx-unprivileged:1.28-alpine
+    <<: *hardening
+    depends_on:
+      backend: { condition: service_healthy }
+      frontend: { condition: service_healthy }
+    volumes:
+      - ./deployment/nginx/proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deployment/nginx/proxy-params.conf:/etc/nginx/dbwrench-proxy-params.conf:ro
+    ports:
+      - "${DBW_BIND:-127.0.0.1}:${DBW_PORT:-8080}:8080"
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/proxy-health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [app_net, edge]
+
+networks:
+  app_net:
+    internal: true
+  egress: {}
+  edge: {}
+
+volumes:
+  dbdata: {}

@@ -1,0 +1,79 @@
+Phases 0–2 are implemented. I took "first 3 phases" to mean Foundation, Core platform with PostgreSQL read-only, and MySQL/MongoDB read-only; the editor and SQL workspaces are not built.
+
+Verification
+Check	Result
+Backend tests (unit, integration and security, against real PostgreSQL, MySQL and MongoDB containers)	286 pass
+Frontend tests	61 pass
+ruff, mypy, tsc, ESLint, Prettier	clean
+Alembic up/down/up and model-drift check	pass
+Full Docker Compose stack, tested end to end through the reverse proxy	works
+Production overlay (TLS, secrets as files, read-only non-root containers)	started and checked
+Real browser (Firefox via Selenium) through login, connections, explorer, data grid and structure view	works under the strict CSP
+What was built
+Backend (FastAPI):
+Sessions with Argon2id, CSRF, lockout and TOTP MFA.
+One-time first-run setup token.
+Role-based access with per-connection grants.
+Hash-chained, append-only audit log.
+Encrypted connection credentials with key rotation.
+Outbound network policy (SSRF protection).
+Read-only adapters for the three engines, with keyset pagination, filtering, search and type-preserving JSON.
+Frontend (React): all the screens above, plus users, roles, network policy and audit log pages. Database content is only ever rendered as text.
+Infrastructure: Dockerfiles, compose files, nginx proxy, scripts, Makefile, CI and release workflows.
+Docs: ADRs 0002–0008, docs/operations.md, docs/STATUS.md (current scope and what's deferred), a corrected AGENTS.md/PRD.md/README.md, and the generated docs/openapi.json.
+Findings from testing
+Read-only bypass: on PostgreSQL, user-supplied SET TRANSACTION READ WRITE as the first statement of a read-only transaction re-enables writes. Phases 1–2 aren't exposed, since all SQL is built by the app. I fixed the adapter by running a query first in every transaction, and recorded the Phase 4 requirements in ADR-0008.
+Loopback policy: the spec said loopback is "always" denied, which makes local testing impossible. Link-local and metadata addresses are still never allowed. Loopback is denied by default and only a development flag can enable it; the app refuses to start in production with it set. I updated AGENTS.md and PRD.md to match.
+MySQL and MongoDB TLS: with verify-full, both drivers connect by hostname (checked just before), so there's a small DNS-rebinding window that PostgreSQL doesn't have. MongoDB also doesn't discover replica-set members, because that would bypass the network policy. Both are documented in ADR-0007.
+Not done
+GitHub workflows: they pass actionlint but have never run on GitHub.
+Phases 3–7: editing, export, masking, SQL/Mongo workspaces, SSO, API tokens and MCP are not built. docs/STATUS.md lists what's deferred.
+Project hygiene: there is no LICENSE (your choice), the 15 skills/*/SKILL.md files aren't written, and the folder isn't a git repository yet.
+Cleanup: I removed the test containers, the generated .env and the secrets. Run ./scripts/init-env.sh and docker compose up -d --build to start fresh.
+
+
+
+=========================================================
+
+
+
+
+
+Phases 3 and 4 are implemented. The backend suite passes (579 passed, 1 skipped), the frontend passes (149 tests), and lint, types and the production build are clean. I also drove the real stack in Firefox. The skip is a PostgreSQL-only test that doesn't apply to MySQL.
+
+Phase 3: data editor and export
+Editing: insert, update and delete rows and MongoDB documents. Updates and deletes send the previous values and are refused with a 409 if someone changed the row meanwhile. MongoDB uses compare-and-swap. Only tables with a primary key can be edited, and views never can.
+Bulk update/delete: you must preview first (count plus a sample of the affected rows). The server executes only with a signed token and a matching count, and refuses (rolling back, on SQL) if the selection changed in between. Production connections need the object name typed back.
+Export: streamed CSV, JSON and NDJSON, with formula-injection protection, a row cap, and an audit record of the real row count. Truncated cells can be loaded in full on demand.
+Masking: admins can mark columns or fields sensitive. Users without data.read_sensitive see masked values and cannot filter, sort, compare or write those fields.
+Phase 4: query workspaces
+SQL (PostgreSQL, MySQL) and MongoDB workspaces with Monaco, multiple tabs, timeouts, cancellation (any replica can cancel), dry-run (execute then roll back), and destructive-statement confirmation.
+Safety: each execution uses its own connection, so session state never leaks to other users. Session and transaction control statements are refused, multi-statement scripts need a separate permission, and MongoDB pipelines go through a stage allowlist that blocks JavaScript and write stages.
+History and saved queries: history is private, with configurable retention and optional removal of literal values. Saved queries can be private or shared per connection.
+Real-browser verification
+I drove the Docker stack in Firefox: insert, inline edit, bulk delete with preview, the SQL workspace with syntax highlighting, results and export, the destructive-statement dialog, and history. Unit tests alone would not have caught two things this found:
+
+Inline editing lost focus on every keystroke. The cause was that column definitions rebuilt on each key. I fixed it and added a regression test.
+Monaco needs inline styles in the CSP. It injects <style> elements, so the CSP now allows inline styles (scripts stay strictly same-origin). This is recorded in ADR-0006.
+Other changes
+Adapter cache: it is now capped with least-recently-used eviction. The suite exhausted Postgres connection slots without this, and it would hit production deployments with many connections.
+Docs: ADR-0009 (masking) and ADR-0010 (query execution) are new, and ADR-0008's follow-through is updated. STATUS, README, AGENTS, the operations guide and docs/openapi.json are current.
+Cleanup: I removed the test containers, the generated .env, and the screenshots.
+Known limits (also in docs/STATUS.md)
+MongoDB bulk operations are not atomic. They are pinned to the previewed _ids and refuse on a count mismatch, and MongoDB cancellation is best-effort.
+Free-form queries cannot be masked. Connections with sensitive markers are closed to free-form SQL and aggregation for users without data.read_sensitive.
+Concurrent-query limit: only the per-user limit and pool sizes are enforced, not a per-connection limit.
+Workflows: the GitHub workflows still haven't run on GitHub.
+Phases 5–7: SSO, API tokens, approvals, import, administration, MCP and AI are not built.
+The next phase is Phase 5; start the stack with ./scripts/init-env.sh then docker compose up -d --build.
+
+
+
+=========================================================
+
+
+
+
+
+
+

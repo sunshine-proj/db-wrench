@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/* Design tokens (shadcn/ui conventions). Light by default, dark via the OS preference. */
+:root {
+  --background: oklch(0.985 0.002 250);
+  --foreground: oklch(0.21 0.02 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.02 255);
+  --muted: oklch(0.955 0.005 250);
+  --muted-foreground: oklch(0.47 0.02 255);
+  --border: oklch(0.9 0.008 250);
+  --input: oklch(0.88 0.01 250);
+  --primary: oklch(0.5 0.1 190);
+  --primary-foreground: oklch(0.99 0 0);
+  --accent: oklch(0.94 0.02 190);
+  --accent-foreground: oklch(0.3 0.06 190);
+  --destructive: oklch(0.52 0.2 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.7 0.15 75);
+  --success: oklch(0.55 0.13 150);
+  --ring: oklch(0.5 0.1 190);
+  --radius: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.17 0.012 255);
+    --foreground: oklch(0.95 0.005 250);
+    --card: oklch(0.205 0.014 255);
+    --card-foreground: oklch(0.95 0.005 250);
+    --muted: oklch(0.25 0.014 255);
+    --muted-foreground: oklch(0.72 0.015 250);
+    --border: oklch(0.31 0.014 255);
+    --input: oklch(0.34 0.014 255);
+    --primary: oklch(0.72 0.11 190);
+    --primary-foreground: oklch(0.16 0.02 190);
+    --accent: oklch(0.28 0.03 190);
+    --accent-foreground: oklch(0.9 0.04 190);
+    --destructive: oklch(0.65 0.19 27);
+    --destructive-foreground: oklch(0.14 0.02 27);
+    --warning: oklch(0.78 0.14 80);
+    --success: oklch(0.72 0.14 150);
+    --ring: oklch(0.72 0.11 190);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-ring: var(--ring);
+  --radius-md: var(--radius);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    color-scheme: light dark;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
