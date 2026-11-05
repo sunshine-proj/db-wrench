@@ -16,6 +16,11 @@ PUBLIC = {
     ("GET", "/api/v1/auth/setup-status"),
     ("POST", "/api/v1/auth/setup"),
     ("POST", "/api/v1/auth/login"),
+    # single sign-on: the login flow starts and ends unauthenticated (state-bound, no CSRF
+    # surface: GET only, no session needed to *begin*, and the callback validates single-use state)
+    ("GET", "/api/v1/auth/oidc/config"),
+    ("GET", "/api/v1/auth/oidc/login"),
+    ("GET", "/api/v1/auth/oidc/callback"),
 }
 
 

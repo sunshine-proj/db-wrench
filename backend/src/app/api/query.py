@@ -13,7 +13,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, or_, select
 
-from app.api.schemas import Strict
+from app.api.schemas import ApprovalId, Strict
 from app.audit import service as audit
 from app.auth.deps import AppSettings, AuthContext, CurrentAuth, DbSession
 from app.auth.permissions import Perm
@@ -26,9 +26,13 @@ from app.database.document.filters import (
     validate_sort,
 )
 from app.database.document.models import DocQuery
-from app.database.document.pipeline import validate_pipeline
+from app.database.document.pipeline import (
+    is_write_pipeline,
+    validate_pipeline,
+    validate_write_pipeline,
+)
 from app.editor.export import make_row_formatter, stream_export
-from app.editor.guards import require_all
+from app.editor.guards import require_all, require_confirmation
 from app.errors import (
     AppError,
     Conflict,
@@ -38,6 +42,7 @@ from app.errors import (
     StatementTimeout,
     ValidationFailed,
 )
+from app.governance import service as gov
 from app.models import Operation, QueryHistory, SavedQuery
 from app.query import service as qs
 from app.query.classify import classify
@@ -94,6 +99,7 @@ class MongoExecuteBody(Strict):
     limit: int | None = Field(default=None, ge=1, le=100_000)
     timeout_s: int | None = Field(default=None, ge=1, le=3600)
     operation_id: uuid.UUID | None = None
+    confirm: str | None = Field(default=None, max_length=255)
 
 
 class MongoExecuteOut(BaseModel):
@@ -373,8 +379,13 @@ async def export_query(
 
 
 @router.post("/mongo/queries/execute", response_model=MongoExecuteOut)
-async def execute_mongo(  # noqa: PLR0915
-    cid: uuid.UUID, body: MongoExecuteBody, db: DbSession, settings: AppSettings, ctx: CurrentAuth
+async def execute_mongo(  # noqa: PLR0912, PLR0915
+    cid: uuid.UUID,
+    body: MongoExecuteBody,
+    db: DbSession,
+    settings: AppSettings,
+    ctx: CurrentAuth,
+    approval_id: ApprovalId = None,
 ) -> MongoExecuteOut:
     access, adapter = await _open(db, ctx, settings, cid, "document")
     adapter = conns.as_document(adapter)
@@ -388,6 +399,7 @@ async def execute_mongo(  # noqa: PLR0915
         return None if v is None else (v if isinstance(v, str) else json.dumps(v))
 
     pipeline: list[dict[str, Any]] = []
+    write_stage: dict[str, Any] | None = None
     query: DocQuery | None = None
     stored: dict[str, Any] = {"kind": body.kind, "collection": body.collection}
     try:
@@ -415,7 +427,14 @@ async def execute_mongo(  # noqa: PLR0915
                 if isinstance(body.pipeline, str)
                 else body.pipeline
             )
-            pipeline, targets = validate_pipeline(raw, max_docs)
+            if is_write_pipeline(raw):
+                # $out / $merge: write permission, writable connection, typed confirmation on
+                # production and a mandatory second-person approval (never skippable).
+                require_all(access, [Perm.QUERY_EXECUTE_WRITE])
+                pipeline, targets, wtarget = validate_write_pipeline(raw, body.database)
+                write_stage = {"stage": wtarget.stage, "into": wtarget.collection, **wtarget.detail}
+            else:
+                pipeline, targets = validate_pipeline(raw, max_docs)
             known = {c.name for c in await run_blocking(adapter.list_collections, body.database)}
             missing = sorted(t for t in targets if t not in known)
             if missing:
@@ -429,6 +448,13 @@ async def execute_mongo(  # noqa: PLR0915
         raise
 
     statement = json.dumps(stored, sort_keys=True)
+    if write_stage is not None:
+        require_confirmation(access, body.confirm, write_stage["into"])
+        await gov.gate(
+            db, ctx, access, "query.mongo_write_stage",
+            {**target, "pipeline": hashlib.sha256(statement.encode()).hexdigest()}, approval_id,
+            summary={**target, **write_stage},
+        )  # fmt: skip
     op_id = await qs.begin_operation(ctx, cid, "mongo", body.database, settings, body.operation_id)
     started = time.perf_counter()
 
@@ -460,6 +486,7 @@ async def execute_mongo(  # noqa: PLR0915
             docs, truncated = await run_blocking(
                 adapter.run_aggregate, body.database, body.collection, pipeline,
                 max_docs=max_docs, timeout_s=timeout, comment=str(op_id),
+                write=write_stage is not None,
             )  # fmt: skip
             extra = {}
     except AppError as exc:

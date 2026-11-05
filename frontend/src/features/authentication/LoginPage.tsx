@@ -7,7 +7,7 @@ import { Field, Input } from "@/components/ui/form";
 import { Alert, Card, CardContent, CardHeader, CardTitle, Spinner } from "@/components/ui/misc";
 import { SESSION_KEY, useAuth } from "@/hooks/useAuth";
 import { t } from "@/i18n";
-import { authApi } from "@/services/api";
+import { authApi, ssoApi } from "@/services/api";
 
 export function LoginPage() {
   const nav = useNavigate();
@@ -18,6 +18,8 @@ export function LoginPage() {
   const setupDone = (location.state as { setupDone?: boolean } | null)?.setupDone === true;
 
   const setup = useQuery({ queryKey: ["setup-status"], queryFn: authApi.setupStatus });
+  const sso = useQuery({ queryKey: ["oidc-public"], queryFn: ssoApi.publicConfig, retry: false });
+  const ssoFailed = new URLSearchParams(location.search).has("sso_error");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -89,6 +91,12 @@ export function LoginPage() {
           ) : (
             <form onSubmit={submitCredentials} className="space-y-3">
               {setupDone && <Alert variant="success">{t("setup.done")}</Alert>}
+              {ssoFailed && <Alert variant="destructive">{t("sso.failed")}</Alert>}
+              {sso.data?.enabled && (
+                <Button asChild variant="outline" className="w-full">
+                  <a href={ssoApi.loginUrl}>{t("sso.login", { name: sso.data.display_name })}</a>
+                </Button>
+              )}
               <Field label={t("auth.username")}>
                 {(p) => (
                   <Input

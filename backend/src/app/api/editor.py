@@ -15,11 +15,12 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, select
 
-from app.api.schemas import Strict
+from app.api.schemas import ApprovalId, Strict
 from app.audit import service as audit
 from app.auth.deps import AppSettings, AuthContext, CurrentAuth, DbSession
 from app.auth.permissions import Perm
 from app.connections import service as conns
+from app.connections.scope import ObjectScope
 from app.database.core.serialization import to_json_value
 from app.database.document.filters import (
     check_field_name,
@@ -44,6 +45,7 @@ from app.editor.guards import (
 )
 from app.errors import ConfirmationRequired, Forbidden, ValidationFailed
 from app.explorer import service as ex
+from app.governance import service as gov
 from app.models import SensitiveMarker
 from app.services.runtime import run_blocking
 
@@ -225,7 +227,10 @@ def _row_out(
 async def _open(
     db: DbSession, ctx: AuthContext, settings: AppSettings, t: Target, perms: list[Perm]
 ) -> tuple[conns.Access, Any]:
-    access, adapter = await conns.open_adapter(db, ctx, settings, t.cid, perms[0], "relational")
+    scope = ObjectScope(t.database, t.schema, t.table)
+    access, adapter = await conns.open_adapter(
+        db, ctx, settings, t.cid, perms[0], "relational", scope
+    )
     require_all(access, perms[1:])
     return access, conns.as_relational(adapter)
 
@@ -346,6 +351,7 @@ def build_relational_router(dep: Callable[..., Target]) -> APIRouter:  # noqa: P
         db: DbSession,
         settings: AppSettings,
         ctx: AuthContext,
+        approval_id: uuid.UUID | None = None,
     ) -> BulkResult:
         need = [Perm.DATA_DELETE if op == "delete" else Perm.DATA_UPDATE, Perm.DATA_BULK_WRITE]
         access, adapter = await _open(db, ctx, settings, t, need)
@@ -362,6 +368,11 @@ def build_relational_router(dep: Callable[..., Target]) -> APIRouter:  # noqa: P
             _bulk_claims(op, t, body.selector, body.values, body.expected_count),
         )
         require_confirmation(access, body.confirm, t.table)
+        claims = _bulk_claims(op, t, body.selector, body.values, body.expected_count)
+        await gov.gate(
+            db, ctx, access, f"data.bulk_{op}", claims, approval_id,
+            summary={**t.audit_target(), "operation": op, "rows": body.expected_count},
+        )  # fmt: skip
         action = f"data.bulk_{op}"
         async with ex.audited(ctx, action, t.cid, t.audit_target()) as detail:
             if op == "delete":
@@ -382,15 +393,17 @@ def build_relational_router(dep: Callable[..., Target]) -> APIRouter:  # noqa: P
 
     @r.post("/rows/bulk/delete", response_model=BulkResult)
     async def bulk_delete(
-        t: T, body: BulkExecBody, db: DbSession, settings: AppSettings, ctx: CurrentAuth
-    ) -> BulkResult:
-        return await _bulk_exec("delete", t, body, db, settings, ctx)
+        t: T, body: BulkExecBody, db: DbSession, settings: AppSettings, ctx: CurrentAuth,
+        approval_id: ApprovalId = None,
+    ) -> BulkResult:  # fmt: skip
+        return await _bulk_exec("delete", t, body, db, settings, ctx, approval_id)
 
     @r.post("/rows/bulk/update", response_model=BulkResult)
     async def bulk_update(
-        t: T, body: BulkExecBody, db: DbSession, settings: AppSettings, ctx: CurrentAuth
-    ) -> BulkResult:
-        return await _bulk_exec("update", t, body, db, settings, ctx)
+        t: T, body: BulkExecBody, db: DbSession, settings: AppSettings, ctx: CurrentAuth,
+        approval_id: ApprovalId = None,
+    ) -> BulkResult:  # fmt: skip
+        return await _bulk_exec("update", t, body, db, settings, ctx, approval_id)
 
     # ---- cell + export --------------------------------------------------------------------
 
@@ -511,10 +524,17 @@ class DocOut(BaseModel):
     doc_key: str | None
 
 
-async def _mongo_open(
-    db: DbSession, ctx: AuthContext, settings: AppSettings, cid: uuid.UUID, perms: list[Perm]
+async def _mongo_open(  # noqa: PLR0913
+    db: DbSession,
+    ctx: AuthContext,
+    settings: AppSettings,
+    cid: uuid.UUID,
+    perms: list[Perm],
+    database: str,
+    collection: str,
 ) -> tuple[conns.Access, Any]:
-    access, adapter = await conns.open_adapter(db, ctx, settings, cid, perms[0], "document")
+    scope = ObjectScope(database, None, collection)
+    access, adapter = await conns.open_adapter(db, ctx, settings, cid, perms[0], "document", scope)
     require_all(access, perms[1:])
     return access, conns.as_document(adapter)
 
@@ -547,7 +567,9 @@ async def insert_document(
     cid: uuid.UUID, database: str, collection: str, body: DocInsert,
     db: DbSession, settings: AppSettings, ctx: CurrentAuth,
 ) -> DocOut:  # fmt: skip
-    access, adapter = await _mongo_open(db, ctx, settings, cid, [Perm.DATA_INSERT])
+    access, adapter = await _mongo_open(
+        db, ctx, settings, cid, [Perm.DATA_INSERT], database, collection
+    )
     masked = await masked_fields(db, access, database, None, collection)
     doc = validate_document(body.document)
     _guard_paths(masked, filter_fields(doc), "write")
@@ -564,7 +586,9 @@ async def replace_document(
     cid: uuid.UUID, database: str, collection: str, doc_key: str, body: DocReplace,
     db: DbSession, settings: AppSettings, ctx: CurrentAuth,
 ) -> DocOut:  # fmt: skip
-    access, adapter = await _mongo_open(db, ctx, settings, cid, [Perm.DATA_UPDATE])
+    access, adapter = await _mongo_open(
+        db, ctx, settings, cid, [Perm.DATA_UPDATE], database, collection
+    )
     masked = await masked_fields(db, access, database, None, collection)
     if masked:
         raise Forbidden(
@@ -588,7 +612,9 @@ async def delete_document(
     cid: uuid.UUID, database: str, collection: str, doc_key: str, body: DocDelete,
     db: DbSession, settings: AppSettings, ctx: CurrentAuth,
 ) -> None:  # fmt: skip
-    access, adapter = await _mongo_open(db, ctx, settings, cid, [Perm.DATA_DELETE])
+    access, adapter = await _mongo_open(
+        db, ctx, settings, cid, [Perm.DATA_DELETE], database, collection
+    )
     require_confirmation(access, body.confirm, collection)
     original = validate_document(body.original) if body.original is not None else None
     async with ex.audited(
@@ -619,7 +645,7 @@ async def documents_bulk_preview(
         Perm.DATA_DELETE if body.operation == "delete" else Perm.DATA_UPDATE,
         Perm.DATA_BULK_WRITE,
     ]
-    access, adapter = await _mongo_open(db, ctx, settings, cid, need)
+    access, adapter = await _mongo_open(db, ctx, settings, cid, need, database, collection)
     masked = await masked_fields(db, access, database, None, collection)
     flt = _json_filter(body.filter)
     _guard_paths(masked, filter_fields(flt), "filter by")
@@ -642,9 +668,10 @@ async def documents_bulk_preview(
 async def _doc_bulk(
     op: Literal["delete", "update"], cid: uuid.UUID, database: str, collection: str,
     body: DocBulkExec, db: DbSession, settings: AppSettings, ctx: AuthContext,
+    approval_id: uuid.UUID | None = None,
 ) -> BulkResult:  # fmt: skip
     need = [Perm.DATA_DELETE if op == "delete" else Perm.DATA_UPDATE, Perm.DATA_BULK_WRITE]
-    access, adapter = await _mongo_open(db, ctx, settings, cid, need)
+    access, adapter = await _mongo_open(db, ctx, settings, cid, need, database, collection)
     masked = await masked_fields(db, access, database, None, collection)
     flt = _json_filter(body.filter)
     _guard_paths(masked, filter_fields(flt), "filter by")
@@ -657,6 +684,12 @@ async def _doc_bulk(
         _doc_claims(op, cid, database, collection, body.filter, body.set, body.expected_count),
     )  # fmt: skip
     require_confirmation(access, body.confirm, collection)
+    claims = _doc_claims(op, cid, database, collection, body.filter, body.set, body.expected_count)
+    await gov.gate(
+        db, ctx, access, f"data.bulk_{op}", claims, approval_id,
+        summary={"database": database, "collection": collection, "operation": op,
+                 "documents": body.expected_count},
+    )  # fmt: skip
     async with ex.audited(
         ctx, f"data.bulk_{op}", cid, {"database": database, "collection": collection}
     ) as detail:
@@ -675,17 +708,21 @@ async def _doc_bulk(
 @mongo.post("/documents/bulk/delete", response_model=BulkResult)
 async def documents_bulk_delete(
     cid: uuid.UUID, database: str, collection: str, body: DocBulkExec,
-    db: DbSession, settings: AppSettings, ctx: CurrentAuth,
+    db: DbSession, settings: AppSettings, ctx: CurrentAuth, approval_id: ApprovalId = None,
 ) -> BulkResult:  # fmt: skip
-    return await _doc_bulk("delete", cid, database, collection, body, db, settings, ctx)
+    return await _doc_bulk(
+        "delete", cid, database, collection, body, db, settings, ctx, approval_id
+    )
 
 
 @mongo.post("/documents/bulk/update", response_model=BulkResult)
 async def documents_bulk_update(
     cid: uuid.UUID, database: str, collection: str, body: DocBulkExec,
-    db: DbSession, settings: AppSettings, ctx: CurrentAuth,
+    db: DbSession, settings: AppSettings, ctx: CurrentAuth, approval_id: ApprovalId = None,
 ) -> BulkResult:  # fmt: skip
-    return await _doc_bulk("update", cid, database, collection, body, db, settings, ctx)
+    return await _doc_bulk(
+        "update", cid, database, collection, body, db, settings, ctx, approval_id
+    )
 
 
 @mongo.get("/export")
@@ -698,7 +735,7 @@ async def export_documents(  # noqa: PLR0913
     projection: ex_JsonParam = None,
 ) -> Any:  # fmt: skip
     access, adapter = await _mongo_open(
-        db, ctx, settings, cid, [Perm.EXPORT_EXPORT, Perm.DATA_READ]
+        db, ctx, settings, cid, [Perm.EXPORT_EXPORT, Perm.DATA_READ], database, collection
     )
     masked = await masked_fields(db, access, database, None, collection)
     flt = validate_filter(filter)

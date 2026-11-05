@@ -5,6 +5,19 @@
  * the session endpoints is attached to every state-changing request.
  */
 import type {
+  ApiTokenCreated,
+  ApiTokenInfo,
+  Approval,
+  ApprovalPolicy,
+  AuditSink,
+  CredentialsStatus,
+  CsvImportOptions,
+  CsvPreview,
+  DocImportPreview,
+  OidcConfig,
+  OidcPublic,
+  PoliciesResponse,
+  ScopeGrant,
   AuditEvent,
   BulkPreview,
   DocBulkPreview,
@@ -65,6 +78,21 @@ export class ApiError extends Error {
 }
 
 let csrfToken: string | null = null;
+let approvalOverride: string | null = null;
+
+/**
+ * Repeat a request with an approved request's id (four-eyes workflow). The header is read
+ * synchronously when the request starts, so it never leaks into concurrent requests.
+ */
+export function withApproval<T>(id: string | undefined, fn: () => Promise<T>): Promise<T> {
+  if (!id) return fn();
+  approvalOverride = id;
+  try {
+    return fn();
+  } finally {
+    approvalOverride = null;
+  }
+}
 let unauthorizedHandler: (() => void) | null = null;
 
 export function setCsrfToken(token: string | null): void {
@@ -95,6 +123,7 @@ async function request<T>(
   const headers: Record<string, string> = { Accept: "application/json" };
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
   if (!SAFE.has(method) && csrfToken) headers["X-CSRF-Token"] = csrfToken;
+  if (approvalOverride) headers["Approval-Id"] = approvalOverride;
 
   let response: Response;
   try {
@@ -146,7 +175,8 @@ const get = <T>(path: string, params?: Params) => request<T>("GET", path, { para
 const post = <T>(path: string, body?: unknown) => request<T>("POST", path, { body: body ?? {} });
 const patch = <T>(path: string, body: unknown) => request<T>("PATCH", path, { body });
 const put = <T>(path: string, body: unknown) => request<T>("PUT", path, { body });
-const del = <T = void>(path: string) => request<T>("DELETE", path);
+const del = <T = void>(path: string, body?: unknown) =>
+  request<T>("DELETE", path, body === undefined ? {} : { body });
 
 /** Builds the query string for the row endpoints (complex values travel as JSON). */
 export function rowParams(r: RowRequest): Params {
@@ -250,6 +280,21 @@ export const connectionsApi = {
   grants: (id: string) => get<Grant[]>(`connections/${seg(id)}/grants`),
   setGrants: (id: string, grants: { user_id: string; role_id: string }[]) =>
     put<Grant[]>(`connections/${seg(id)}/grants`, { grants }),
+  scopeGrants: (id: string) => get<ScopeGrant[]>(`connections/${seg(id)}/scope-grants`),
+  setScopeGrants: (
+    id: string,
+    grants: {
+      user_id: string;
+      role_id: string;
+      database: string;
+      schema: string;
+      object: string;
+    }[],
+  ) => put<ScopeGrant[]>(`connections/${seg(id)}/scope-grants`, { grants }),
+  credentials: (id: string) => get<CredentialsStatus>(`connections/${seg(id)}/credentials/me`),
+  setCredentials: (id: string, username: string, password: string) =>
+    put<CredentialsStatus>(`connections/${seg(id)}/credentials/me`, { username, password }),
+  removeCredentials: (id: string) => del(`connections/${seg(id)}/credentials/me`),
 };
 
 export interface TablePath {
@@ -504,4 +549,125 @@ export const queryApi = {
   deleteSaved: (cid: string, id: string) => del(`connections/${seg(cid)}/queries/saved/${seg(id)}`),
   historySettings: () => get<HistorySettings>("settings/query-history"),
   setHistorySettings: (b: HistorySettings) => put<HistorySettings>("settings/query-history", b),
+};
+
+// ------------------------------------------------------------------ Phase 5
+
+/** Where an object-level request goes: with or without the PostgreSQL schema segment. */
+function objectBase(p: TablePath): string {
+  return tableBase(p);
+}
+
+export const adminApi = {
+  createDatabase: (cid: string, name: string, options?: Record<string, unknown>) =>
+    post<{ name: string }>(`connections/${seg(cid)}/databases`, { name, options: options ?? {} }),
+  dropDatabase: (cid: string, db: string) =>
+    del(`connections/${seg(cid)}/databases/${seg(db)}`, { confirm: db }),
+  createSchema: (cid: string, db: string, name: string) =>
+    post<{ name: string }>(`connections/${seg(cid)}/databases/${seg(db)}/schemas`, { name }),
+  dropSchema: (cid: string, db: string, schema: string) =>
+    del(`connections/${seg(cid)}/databases/${seg(db)}/schemas/${seg(schema)}`, { confirm: schema }),
+  createIndex: (p: TablePath, name: string, columns: string[], unique: boolean) =>
+    post<{ name: string }>(`${objectBase(p)}/indexes`, { name, columns, unique }),
+  dropIndex: (p: TablePath, name: string, confirm?: string) =>
+    del(`${objectBase(p)}/indexes/${seg(name)}`, { confirm }),
+  mongoCreateDatabase: (cid: string, name: string, collection: string) =>
+    post<{ name: string }>(`connections/${seg(cid)}/mongo/databases`, { name, collection }),
+  mongoDropDatabase: (cid: string, db: string) =>
+    del(`connections/${seg(cid)}/mongo/databases/${seg(db)}`, { confirm: db }),
+  mongoCreateCollection: (
+    cid: string,
+    db: string,
+    b: { name: string; capped?: boolean; size_bytes?: number; max_docs?: number },
+  ) => post<{ name: string }>(`connections/${seg(cid)}/mongo/databases/${seg(db)}/collections`, b),
+  mongoDropCollection: (cid: string, db: string, coll: string) =>
+    del(`connections/${seg(cid)}/mongo/databases/${seg(db)}/collections/${seg(coll)}`, {
+      confirm: coll,
+    }),
+  mongoCreateIndex: (
+    cid: string,
+    db: string,
+    coll: string,
+    b: {
+      keys: { field: string; direction: number | string }[];
+      name?: string;
+      unique?: boolean;
+      sparse?: boolean;
+      ttl_seconds?: number;
+    },
+  ) =>
+    post<{ name: string }>(
+      `connections/${seg(cid)}/mongo/databases/${seg(db)}/collections/${seg(coll)}/indexes`,
+      b,
+    ),
+  mongoDropIndex: (cid: string, db: string, coll: string, name: string, confirm?: string) =>
+    del(
+      `connections/${seg(cid)}/mongo/databases/${seg(db)}/collections/${seg(coll)}/indexes/${seg(name)}`,
+      { confirm },
+    ),
+};
+
+export const importApi = {
+  previewCsv: (p: TablePath, b: CsvImportOptions) =>
+    post<CsvPreview>(`${objectBase(p)}/import/preview`, b),
+  commitCsv: (p: TablePath, b: CsvImportOptions & { token: string; confirm?: string }) =>
+    post<{ imported: number }>(`${objectBase(p)}/import/commit`, b),
+  previewDocs: (cid: string, db: string, coll: string, content: string, format: string) =>
+    post<DocImportPreview>(
+      `connections/${seg(cid)}/mongo/databases/${seg(db)}/collections/${seg(coll)}/import/preview`,
+      { content, format },
+    ),
+  commitDocs: (
+    cid: string,
+    db: string,
+    coll: string,
+    b: { content: string; format: string; token: string; confirm?: string },
+  ) =>
+    post<{ imported: number }>(
+      `connections/${seg(cid)}/mongo/databases/${seg(db)}/collections/${seg(coll)}/import/commit`,
+      b,
+    ),
+};
+
+export const governanceApi = {
+  approvals: (scope: "mine" | "review", status?: string) =>
+    get<Approval[]>("approvals", { scope, status }),
+  approve: (id: string, reason?: string) =>
+    post<Approval>(`approvals/${seg(id)}/approve`, { reason: reason || null }),
+  reject: (id: string, reason?: string) =>
+    post<Approval>(`approvals/${seg(id)}/reject`, { reason: reason || null }),
+  cancel: (id: string) => post<Approval>(`approvals/${seg(id)}/cancel`),
+  policies: () => get<PoliciesResponse>("governance/policies"),
+  setPolicy: (b: { connection_id?: string; environment?: string; operations: string[] }) =>
+    put<ApprovalPolicy>("governance/policies", b),
+};
+
+export const tokensApi = {
+  list: (scope: "mine" | "all" = "mine") => get<ApiTokenInfo[]>("tokens", { scope }),
+  scopes: () => get<{ scopes: string[] }>("tokens/scopes"),
+  create: (b: {
+    name: string;
+    scopes: string[];
+    connection_ids?: string[] | null;
+    expires_in_days: number;
+  }) => post<ApiTokenCreated>("tokens", b),
+  revoke: (id: string) => del(`tokens/${seg(id)}`),
+};
+
+export const ssoApi = {
+  publicConfig: () => get<OidcPublic>("auth/oidc/config"),
+  loginUrl: `${BASE}/auth/oidc/login`,
+  config: () => get<OidcConfig>("settings/oidc"),
+  setConfig: (
+    b: Omit<OidcConfig, "client_secret_set" | "redirect_uri"> & { client_secret?: string },
+  ) => put<OidcConfig>("settings/oidc", b),
+};
+
+export const auditSinkApi = {
+  get: () => get<AuditSink>("settings/audit-sink"),
+  set: (b: Omit<AuditSink, "last_forwarded_id"> & { backfill?: boolean }) =>
+    put<AuditSink>("settings/audit-sink", b),
+  test: () => post<{ ok: boolean; error: string | null }>("settings/audit-sink/test"),
+  exportUrl: (format: "csv" | "json" | "ndjson", params: Record<string, string> = {}) =>
+    `${BASE}/audit/export${query({ format, ...params })}`,
 };

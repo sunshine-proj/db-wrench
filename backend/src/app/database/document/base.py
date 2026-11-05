@@ -98,8 +98,55 @@ class DocumentAdapter(DatabaseAdapter, ABC):
         max_docs: int,
         timeout_s: int,
         comment: str,
+        write: bool = False,
     ) -> tuple[list[dict[str, Any]], bool]: ...
 
     @abstractmethod
     def cancel_operation(self, comment: str) -> bool:
         """Best-effort ``killOp`` of the operation tagged with ``comment``."""
+
+    # ---- administration (Phase 5) -----------------------------------------------------
+
+    @abstractmethod
+    def create_database(self, name: str, first_collection: str) -> None:
+        """MongoDB creates databases lazily, so one is created together with a collection."""
+
+    @abstractmethod
+    def drop_database(self, name: str) -> None: ...
+
+    @abstractmethod
+    def create_collection(
+        self, database: str, name: str, options: dict[str, Any] | None = None
+    ) -> None: ...
+
+    @abstractmethod
+    def drop_collection(self, database: str, collection: str) -> None: ...
+
+    @abstractmethod
+    def create_index(  # noqa: PLR0913
+        self,
+        database: str,
+        collection: str,
+        keys: list[tuple[str, Any]],
+        *,
+        name: str | None = None,
+        unique: bool = False,
+        sparse: bool = False,
+        ttl_seconds: int | None = None,
+        partial_filter: dict[str, Any] | None = None,
+    ) -> str: ...
+
+    @abstractmethod
+    def drop_index(self, database: str, collection: str, name: str) -> None: ...
+
+    # ---- import (Phase 5) -------------------------------------------------------------
+
+    @abstractmethod
+    def existing_ids(self, database: str, collection: str, ids: list[Any]) -> set[Any]:
+        """Which of ``ids`` already exist (used to report import collisions up front)."""
+
+    @abstractmethod
+    def import_documents(
+        self, database: str, collection: str, docs: list[dict[str, Any]]
+    ) -> tuple[int, list[dict[str, Any]]]:
+        """Insert (never upsert). Returns (inserted, per-document errors). Not atomic."""

@@ -113,6 +113,18 @@ class ConfirmationRequired(AppError):
     title = "Explicit confirmation required"
 
 
+class CredentialsRequired(AppError):
+    status = 409
+    code = "credentials_required"
+    title = "Your own database credentials are required for this connection"
+
+
+class ApprovalRequired(AppError):
+    status = 428
+    code = "approval_required"
+    title = "A second person must approve this operation"
+
+
 class UnsupportedCapability(AppError):
     status = 422
     code = "unsupported_capability"

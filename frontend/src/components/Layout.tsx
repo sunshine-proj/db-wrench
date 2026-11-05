@@ -2,6 +2,9 @@ import { useMutation } from "@tanstack/react-query";
 import {
   Activity,
   Database,
+  Gavel,
+  Link2,
+  Stamp,
   Globe,
   KeyRound,
   LayoutDashboard,
@@ -39,6 +42,20 @@ const NAV: NavItem[] = [
   { to: "/admin/users", label: "nav.users", icon: Users, permission: "app.manage_users" },
   { to: "/admin/roles", label: "nav.roles", icon: Shield, permission: "app.manage_roles" },
   { to: "/admin/network", label: "nav.network", icon: Network, permission: "app.manage_settings" },
+  {
+    to: "/admin/governance",
+    label: "nav.governance",
+    icon: Gavel,
+    permission: "app.manage_settings",
+  },
+  {
+    to: "/admin/integrations",
+    label: "nav.integrations",
+    icon: Link2,
+    permission: "app.manage_settings",
+  },
+  { to: "/approvals", label: "nav.approvals", icon: Stamp },
+  { to: "/tokens", label: "nav.tokens", icon: KeyRound, permission: "app.manage_tokens" },
   { to: "/audit", label: "nav.audit", icon: ScrollText, permission: "audit.view" },
   { to: "/account", label: "nav.account", icon: KeyRound },
 ];

@@ -1,6 +1,229 @@
 {
   "components": {
     "schemas": {
+      "ApprovalOut": {
+        "properties": {
+          "connection_id": {
+            "format": "uuid",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "connection_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "environment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environment"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "operation": {
+            "title": "Operation",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "requester": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requester"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "title": "Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "connection_id",
+          "connection_name",
+          "environment",
+          "requester",
+          "operation",
+          "summary",
+          "status",
+          "reason",
+          "decided_by",
+          "created_at",
+          "decided_at",
+          "expires_at"
+        ],
+        "title": "ApprovalOut",
+        "type": "object"
+      },
+      "AuditSinkIn": {
+        "additionalProperties": false,
+        "properties": {
+          "backfill": {
+            "default": false,
+            "description": "Also forward events recorded before the sink was enabled.",
+            "title": "Backfill",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "facility": {
+            "default": 13,
+            "maximum": 23.0,
+            "minimum": 0.0,
+            "title": "Facility",
+            "type": "integer"
+          },
+          "format": {
+            "default": "rfc5424",
+            "enum": [
+              "rfc5424",
+              "json"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "host": {
+            "default": "",
+            "maxLength": 255,
+            "title": "Host",
+            "type": "string"
+          },
+          "port": {
+            "default": 514,
+            "maximum": 65535.0,
+            "minimum": 1.0,
+            "title": "Port",
+            "type": "integer"
+          },
+          "protocol": {
+            "default": "tcp",
+            "enum": [
+              "udp",
+              "tcp",
+              "tls"
+            ],
+            "title": "Protocol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "AuditSinkIn",
+        "type": "object"
+      },
+      "AuditSinkOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "facility": {
+            "title": "Facility",
+            "type": "integer"
+          },
+          "format": {
+            "title": "Format",
+            "type": "string"
+          },
+          "host": {
+            "title": "Host",
+            "type": "string"
+          },
+          "last_forwarded_id": {
+            "title": "Last Forwarded Id",
+            "type": "integer"
+          },
+          "port": {
+            "title": "Port",
+            "type": "integer"
+          },
+          "protocol": {
+            "title": "Protocol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "protocol",
+          "host",
+          "port",
+          "format",
+          "facility",
+          "last_forwarded_id"
+        ],
+        "title": "AuditSinkOut",
+        "type": "object"
+      },
       "BulkExecBody": {
         "additionalProperties": false,
         "properties": {
@@ -228,6 +451,15 @@
             "minimum": 1.0,
             "title": "Connect Timeout S",
             "type": "integer"
+          },
+          "credential_model": {
+            "default": "shared",
+            "enum": [
+              "shared",
+              "per_user"
+            ],
+            "title": "Credential Model",
+            "type": "string"
           },
           "database": {
             "anyOf": [
@@ -533,6 +765,21 @@
             ],
             "title": "Connect Timeout S"
           },
+          "credential_model": {
+            "anyOf": [
+              {
+                "enum": [
+                  "shared",
+                  "per_user"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credential Model"
+          },
           "database": {
             "anyOf": [
               {
@@ -731,6 +978,298 @@
         "title": "ConstraintInfo",
         "type": "object"
       },
+      "CreateDatabaseBody": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 64,
+            "title": "Name",
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateDatabaseBody",
+        "type": "object"
+      },
+      "CreateNamedBody": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 64,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateNamedBody",
+        "type": "object"
+      },
+      "Created": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Created",
+        "type": "object"
+      },
+      "CredentialsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "format": "password",
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "username": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "CredentialsIn",
+        "type": "object"
+      },
+      "CredentialsOut": {
+        "description": "Never contains the password.",
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          }
+        },
+        "required": [
+          "required",
+          "configured",
+          "username"
+        ],
+        "title": "CredentialsOut",
+        "type": "object"
+      },
+      "CsvCommit": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "content": {
+            "maxLength": 8000000,
+            "title": "Content",
+            "type": "string"
+          },
+          "delimiter": {
+            "default": ",",
+            "enum": [
+              ",",
+              ";",
+              "tab",
+              "|"
+            ],
+            "title": "Delimiter",
+            "type": "string"
+          },
+          "empty_as_null": {
+            "default": true,
+            "title": "Empty As Null",
+            "type": "boolean"
+          },
+          "has_header": {
+            "default": true,
+            "title": "Has Header",
+            "type": "boolean"
+          },
+          "mapping": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "maxProperties": 500,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "CSV column (header name, or 0-based index without a header) -> table column. Omit to use the header names as column names.",
+            "title": "Mapping"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "token"
+        ],
+        "title": "CsvCommit",
+        "type": "object"
+      },
+      "CsvImport": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 8000000,
+            "title": "Content",
+            "type": "string"
+          },
+          "delimiter": {
+            "default": ",",
+            "enum": [
+              ",",
+              ";",
+              "tab",
+              "|"
+            ],
+            "title": "Delimiter",
+            "type": "string"
+          },
+          "empty_as_null": {
+            "default": true,
+            "title": "Empty As Null",
+            "type": "boolean"
+          },
+          "has_header": {
+            "default": true,
+            "title": "Has Header",
+            "type": "boolean"
+          },
+          "mapping": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "maxProperties": 500,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "CSV column (header name, or 0-based index without a header) -> table column. Omit to use the header names as column names.",
+            "title": "Mapping"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "CsvImport",
+        "type": "object"
+      },
+      "CsvPreviewOut": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/RowProblem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "requires_confirmation": {
+            "title": "Requires Confirmation",
+            "type": "boolean"
+          },
+          "rows": {
+            "title": "Rows",
+            "type": "integer"
+          },
+          "sample": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Sample",
+            "type": "array"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "valid_rows": {
+            "title": "Valid Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "valid_rows",
+          "errors",
+          "columns",
+          "sample",
+          "token",
+          "requires_confirmation"
+        ],
+        "title": "CsvPreviewOut",
+        "type": "object"
+      },
       "DatabaseInfo": {
         "properties": {
           "comment": {
@@ -774,6 +1313,25 @@
         ],
         "title": "DbType",
         "type": "string"
+      },
+      "DecisionBody": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "DecisionBody",
+        "type": "object"
       },
       "DeleteBody": {
         "additionalProperties": false,
@@ -929,6 +1487,47 @@
         "title": "DocBulkPreviewOut",
         "type": "object"
       },
+      "DocCommit": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "content": {
+            "maxLength": 8000000,
+            "title": "Content",
+            "type": "string"
+          },
+          "format": {
+            "default": "json",
+            "enum": [
+              "json",
+              "ndjson"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "token"
+        ],
+        "title": "DocCommit",
+        "type": "object"
+      },
       "DocDelete": {
         "additionalProperties": false,
         "properties": {
@@ -954,6 +1553,30 @@
           }
         },
         "title": "DocDelete",
+        "type": "object"
+      },
+      "DocImport": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 8000000,
+            "title": "Content",
+            "type": "string"
+          },
+          "format": {
+            "default": "json",
+            "enum": [
+              "json",
+              "ndjson"
+            ],
+            "title": "Format",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "DocImport",
         "type": "object"
       },
       "DocInsert": {
@@ -995,6 +1618,73 @@
         "title": "DocOut",
         "type": "object"
       },
+      "DocPreviewOut": {
+        "properties": {
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/DocProblem"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "requires_confirmation": {
+            "title": "Requires Confirmation",
+            "type": "boolean"
+          },
+          "sample": {
+            "items": {},
+            "title": "Sample",
+            "type": "array"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "valid_documents": {
+            "title": "Valid Documents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "documents",
+          "valid_documents",
+          "errors",
+          "sample",
+          "token",
+          "requires_confirmation"
+        ],
+        "title": "DocPreviewOut",
+        "type": "object"
+      },
+      "DocProblem": {
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "message"
+        ],
+        "title": "DocProblem",
+        "type": "object"
+      },
       "DocReplace": {
         "additionalProperties": false,
         "properties": {
@@ -1010,6 +1700,25 @@
           "document"
         ],
         "title": "DocReplace",
+        "type": "object"
+      },
+      "DropBody": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          }
+        },
+        "title": "DropBody",
         "type": "object"
       },
       "ExecuteBody": {
@@ -1539,6 +2248,49 @@
         "title": "HistorySettings",
         "type": "object"
       },
+      "ImportDone": {
+        "properties": {
+          "imported": {
+            "title": "Imported",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "imported"
+        ],
+        "title": "ImportDone",
+        "type": "object"
+      },
+      "IndexBody": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Columns",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 63,
+            "title": "Name",
+            "type": "string"
+          },
+          "unique": {
+            "default": false,
+            "title": "Unique",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "columns"
+        ],
+        "title": "IndexBody",
+        "type": "object"
+      },
       "IndexInfo": {
         "properties": {
           "columns": {
@@ -1767,6 +2519,72 @@
         "title": "MfaDisableRequest",
         "type": "object"
       },
+      "MongoCollectionBody": {
+        "additionalProperties": false,
+        "properties": {
+          "capped": {
+            "default": false,
+            "title": "Capped",
+            "type": "boolean"
+          },
+          "max_docs": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Docs"
+          },
+          "name": {
+            "maxLength": 64,
+            "title": "Name",
+            "type": "string"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "MongoCollectionBody",
+        "type": "object"
+      },
+      "MongoDatabaseBody": {
+        "additionalProperties": false,
+        "properties": {
+          "collection": {
+            "description": "First collection (creates the database)",
+            "maxLength": 64,
+            "title": "Collection",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 64,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "collection"
+        ],
+        "title": "MongoDatabaseBody",
+        "type": "object"
+      },
       "MongoExecuteBody": {
         "additionalProperties": false,
         "properties": {
@@ -1775,6 +2593,18 @@
             "minLength": 1,
             "title": "Collection",
             "type": "string"
+          },
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
           },
           "database": {
             "maxLength": 255,
@@ -1933,6 +2763,98 @@
         "title": "MongoExecuteOut",
         "type": "object"
       },
+      "MongoIndexBody": {
+        "additionalProperties": false,
+        "properties": {
+          "keys": {
+            "items": {
+              "$ref": "#/components/schemas/MongoIndexKey"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Keys",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 63,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "partial_filter": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partial Filter"
+          },
+          "sparse": {
+            "default": false,
+            "title": "Sparse",
+            "type": "boolean"
+          },
+          "ttl_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Seconds"
+          },
+          "unique": {
+            "default": false,
+            "title": "Unique",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "keys"
+        ],
+        "title": "MongoIndexBody",
+        "type": "object"
+      },
+      "MongoIndexKey": {
+        "additionalProperties": false,
+        "properties": {
+          "direction": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "default": 1,
+            "title": "Direction"
+          },
+          "field": {
+            "maxLength": 500,
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field"
+        ],
+        "title": "MongoIndexKey",
+        "type": "object"
+      },
       "NetworkPolicyIn": {
         "additionalProperties": false,
         "properties": {
@@ -1997,6 +2919,170 @@
         "title": "NetworkPolicyOut",
         "type": "object"
       },
+      "OidcIn": {
+        "additionalProperties": false,
+        "properties": {
+          "client_id": {
+            "default": "",
+            "maxLength": 255,
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "format": "password",
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Write-only; omit to keep the stored secret.",
+            "title": "Client Secret"
+          },
+          "default_role": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Role"
+          },
+          "display_name": {
+            "default": "Single sign-on",
+            "maxLength": 60,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "groups_claim": {
+            "default": "groups",
+            "maxLength": 100,
+            "title": "Groups Claim",
+            "type": "string"
+          },
+          "issuer": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Issuer",
+            "type": "string"
+          },
+          "role_mappings": {
+            "items": {
+              "$ref": "#/components/schemas/RoleMapping"
+            },
+            "maxItems": 200,
+            "title": "Role Mappings",
+            "type": "array"
+          },
+          "scopes": {
+            "default": "openid email profile",
+            "maxLength": 200,
+            "title": "Scopes",
+            "type": "string"
+          },
+          "username_claim": {
+            "default": "preferred_username",
+            "maxLength": 100,
+            "title": "Username Claim",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "OidcIn",
+        "type": "object"
+      },
+      "OidcOut": {
+        "properties": {
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_secret_set": {
+            "title": "Client Secret Set",
+            "type": "boolean"
+          },
+          "default_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Role"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "groups_claim": {
+            "title": "Groups Claim",
+            "type": "string"
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "redirect_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Uri"
+          },
+          "role_mappings": {
+            "items": {
+              "$ref": "#/components/schemas/RoleMapping"
+            },
+            "title": "Role Mappings",
+            "type": "array"
+          },
+          "scopes": {
+            "title": "Scopes",
+            "type": "string"
+          },
+          "username_claim": {
+            "title": "Username Claim",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "issuer",
+          "client_id",
+          "client_secret_set",
+          "scopes",
+          "groups_claim",
+          "username_claim",
+          "display_name",
+          "role_mappings",
+          "default_role",
+          "redirect_uri"
+        ],
+        "title": "OidcOut",
+        "type": "object"
+      },
       "PasswordChangeRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2034,6 +3120,133 @@
           "new_password"
         ],
         "title": "PasswordReset",
+        "type": "object"
+      },
+      "PoliciesOut": {
+        "properties": {
+          "always_approved": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Always Approved",
+            "type": "array"
+          },
+          "available_operations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Available Operations",
+            "type": "array"
+          },
+          "policies": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyOut"
+            },
+            "title": "Policies",
+            "type": "array"
+          }
+        },
+        "required": [
+          "policies",
+          "available_operations",
+          "always_approved"
+        ],
+        "title": "PoliciesOut",
+        "type": "object"
+      },
+      "PolicyIn": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Id"
+          },
+          "environment": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environment"
+          },
+          "operations": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Operations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "operations"
+        ],
+        "title": "PolicyIn",
+        "type": "object"
+      },
+      "PolicyOut": {
+        "properties": {
+          "connection_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Id"
+          },
+          "connection_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Name"
+          },
+          "environment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environment"
+          },
+          "operations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Operations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connection_id",
+          "connection_name",
+          "environment",
+          "operations"
+        ],
+        "title": "PolicyOut",
         "type": "object"
       },
       "ResultSetOut": {
@@ -2107,6 +3320,29 @@
           "permissions"
         ],
         "title": "RoleCreate",
+        "type": "object"
+      },
+      "RoleMapping": {
+        "additionalProperties": false,
+        "properties": {
+          "group": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Group",
+            "type": "string"
+          },
+          "role": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group",
+          "role"
+        ],
+        "title": "RoleMapping",
         "type": "object"
       },
       "RoleOut": {
@@ -2289,6 +3525,24 @@
           "limit"
         ],
         "title": "RowPage",
+        "type": "object"
+      },
+      "RowProblem": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "row": {
+            "title": "Row",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row",
+          "message"
+        ],
+        "title": "RowProblem",
         "type": "object"
       },
       "RowResult": {
@@ -2591,6 +3845,109 @@
         "title": "SchemaInfo",
         "type": "object"
       },
+      "ScopeGrantIn": {
+        "additionalProperties": false,
+        "properties": {
+          "database": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Database",
+            "type": "string"
+          },
+          "object": {
+            "default": "",
+            "maxLength": 255,
+            "title": "Object",
+            "type": "string"
+          },
+          "role_id": {
+            "format": "uuid",
+            "title": "Role Id",
+            "type": "string"
+          },
+          "schema": {
+            "default": "",
+            "maxLength": 255,
+            "title": "Schema",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "role_id",
+          "database"
+        ],
+        "title": "ScopeGrantIn",
+        "type": "object"
+      },
+      "ScopeGrantOut": {
+        "properties": {
+          "database": {
+            "title": "Database",
+            "type": "string"
+          },
+          "object": {
+            "title": "Object",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "role_id": {
+            "format": "uuid",
+            "title": "Role Id",
+            "type": "string"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "username",
+          "role_id",
+          "role",
+          "database",
+          "schema",
+          "object"
+        ],
+        "title": "ScopeGrantOut",
+        "type": "object"
+      },
+      "ScopeGrantsUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "grants": {
+            "items": {
+              "$ref": "#/components/schemas/ScopeGrantIn"
+            },
+            "maxItems": 2000,
+            "title": "Grants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "grants"
+        ],
+        "title": "ScopeGrantsUpdate",
+        "type": "object"
+      },
       "SelectorBody": {
         "additionalProperties": false,
         "properties": {
@@ -2838,6 +4195,24 @@
         "title": "SetupStatus",
         "type": "object"
       },
+      "SsoPublic": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "display_name"
+        ],
+        "title": "SsoPublic",
+        "type": "object"
+      },
       "TableInfo": {
         "properties": {
           "comment": {
@@ -2986,6 +4361,269 @@
         ],
         "title": "TlsMode",
         "type": "string"
+      },
+      "TokenCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Ids"
+          },
+          "expires_in_days": {
+            "default": 30,
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Expires In Days",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Scopes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "scopes"
+        ],
+        "title": "TokenCreate",
+        "type": "object"
+      },
+      "TokenCreated": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "connection_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Ids"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "secret": {
+            "description": "Shown once; store it now.",
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "owner",
+          "scopes",
+          "connection_ids",
+          "created_at",
+          "expires_at",
+          "last_used_at",
+          "revoked_at",
+          "active",
+          "secret"
+        ],
+        "title": "TokenCreated",
+        "type": "object"
+      },
+      "TokenOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "connection_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Ids"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "owner",
+          "scopes",
+          "connection_ids",
+          "created_at",
+          "expires_at",
+          "last_used_at",
+          "revoked_at",
+          "active"
+        ],
+        "title": "TokenOut",
+        "type": "object"
+      },
+      "TokenScopes": {
+        "properties": {
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scopes"
+        ],
+        "title": "TokenScopes",
+        "type": "object"
       },
       "UpdateBody": {
         "additionalProperties": false,
@@ -3238,6 +4876,235 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/approvals": {
+      "get": {
+        "operationId": "list_approvals__get__api_v1_approvals",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "mine",
+              "enum": [
+                "mine",
+                "review"
+              ],
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(pending|approved|rejected|executed|cancelled)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApprovalOut"
+                  },
+                  "title": "Response List Approvals  Get  Api V1 Approvals",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Approvals",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
+    "/api/v1/approvals/{approval_id}/approve": {
+      "post": {
+        "operationId": "approve__post__api_v1_approvals_approval_id_approve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
+    "/api/v1/approvals/{approval_id}/cancel": {
+      "post": {
+        "operationId": "cancel__post__api_v1_approvals_approval_id_cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
+    "/api/v1/approvals/{approval_id}/reject": {
+      "post": {
+        "operationId": "reject__post__api_v1_approvals_approval_id_reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
     "/api/v1/audit/events": {
       "get": {
         "operationId": "list_audit_events__get__api_v1_audit_events",
@@ -3382,6 +5249,154 @@
           }
         },
         "summary": "List Audit Events",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/audit/export": {
+      "get": {
+        "operationId": "export_audit__get__api_v1_audit_export",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "ndjson",
+              "enum": [
+                "csv",
+                "json",
+                "ndjson"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "connection_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Connection Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "result",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(success|failure|denied)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Result"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Audit",
         "tags": [
           "administration"
         ]
@@ -3605,6 +5620,128 @@
         "summary": "Mfa Verify",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "get": {
+        "operationId": "callback__get__api_v1_auth_oidc_callback",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Callback",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/api/v1/auth/oidc/config": {
+      "get": {
+        "operationId": "public_config__get__api_v1_auth_oidc_config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Public Config",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
+    "/api/v1/auth/oidc/login": {
+      "get": {
+        "operationId": "login__get__api_v1_auth_oidc_login",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "sso"
         ]
       }
     },
@@ -3978,6 +6115,134 @@
         ]
       }
     },
+    "/api/v1/connections/{cid}/credentials/me": {
+      "delete": {
+        "operationId": "delete_my_credentials__delete__api_v1_connections_cid_credentials_me",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete My Credentials",
+        "tags": [
+          "connections"
+        ]
+      },
+      "get": {
+        "operationId": "my_credentials__get__api_v1_connections_cid_credentials_me",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Credentials",
+        "tags": [
+          "connections"
+        ]
+      },
+      "put": {
+        "operationId": "put_my_credentials__put__api_v1_connections_cid_credentials_me",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put My Credentials",
+        "tags": [
+          "connections"
+        ]
+      }
+    },
     "/api/v1/connections/{cid}/databases": {
       "get": {
         "operationId": "list_databases__get__api_v1_connections_cid_databases",
@@ -4022,6 +6287,150 @@
         "summary": "List Databases",
         "tags": [
           "explorer"
+        ]
+      },
+      "post": {
+        "operationId": "create_database__post__api_v1_connections_cid_databases",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatabaseBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Database",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/databases/{database}": {
+      "delete": {
+        "operationId": "drop_database__delete__api_v1_connections_cid_databases_database",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DropBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Drop Database",
+        "tags": [
+          "administration"
         ]
       }
     },
@@ -4078,6 +6487,168 @@
         "summary": "List Schemas",
         "tags": [
           "explorer"
+        ]
+      },
+      "post": {
+        "operationId": "create_schema__post__api_v1_connections_cid_databases_database_schemas",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNamedBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Schema",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/databases/{database}/schemas/{schema}": {
+      "delete": {
+        "operationId": "drop_schema__delete__api_v1_connections_cid_databases_database_schemas_schema",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "schema",
+            "required": true,
+            "schema": {
+              "title": "Schema",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DropBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Drop Schema",
+        "tags": [
+          "administration"
         ]
       }
     },
@@ -4516,6 +7087,392 @@
         ]
       }
     },
+    "/api/v1/connections/{cid}/databases/{database}/schemas/{schema}/tables/{table}/import/commit": {
+      "post": {
+        "operationId": "commit__post__api_v1_connections_cid_databases_database_schemas_schema_tables_table_import_commit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "schema",
+            "required": true,
+            "schema": {
+              "title": "Schema",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "table",
+            "required": true,
+            "schema": {
+              "title": "Table",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvCommit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportDone"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Commit",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/databases/{database}/schemas/{schema}/tables/{table}/import/preview": {
+      "post": {
+        "operationId": "preview__post__api_v1_connections_cid_databases_database_schemas_schema_tables_table_import_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "schema",
+            "required": true,
+            "schema": {
+              "title": "Schema",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "table",
+            "required": true,
+            "schema": {
+              "title": "Table",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/databases/{database}/schemas/{schema}/tables/{table}/indexes": {
+      "post": {
+        "operationId": "create_index__post__api_v1_connections_cid_databases_database_schemas_schema_tables_table_indexes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "schema",
+            "required": true,
+            "schema": {
+              "title": "Schema",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "table",
+            "required": true,
+            "schema": {
+              "title": "Table",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IndexBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Index",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/databases/{database}/schemas/{schema}/tables/{table}/indexes/{index}": {
+      "delete": {
+        "operationId": "drop_index__delete__api_v1_connections_cid_databases_database_schemas_schema_tables_table_indexes_index",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "schema",
+            "required": true,
+            "schema": {
+              "title": "Schema",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "table",
+            "required": true,
+            "schema": {
+              "title": "Table",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DropBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Drop Index",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
     "/api/v1/connections/{cid}/databases/{database}/schemas/{schema}/tables/{table}/rows": {
       "get": {
         "operationId": "table_rows_in_schema__get__api_v1_connections_cid_databases_database_schemas_schema_tables_table_rows",
@@ -4820,6 +7777,25 @@
               "title": "Table",
               "type": "string"
             }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
           }
         ],
         "requestBody": {
@@ -4979,6 +7955,25 @@
             "schema": {
               "title": "Table",
               "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
             }
           }
         ],
@@ -5564,6 +8559,356 @@
         ]
       }
     },
+    "/api/v1/connections/{cid}/databases/{database}/tables/{table}/import/commit": {
+      "post": {
+        "operationId": "commit__post__api_v1_connections_cid_databases_database_tables_table_import_commit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "table",
+            "required": true,
+            "schema": {
+              "title": "Table",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvCommit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportDone"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Commit",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/databases/{database}/tables/{table}/import/preview": {
+      "post": {
+        "operationId": "preview__post__api_v1_connections_cid_databases_database_tables_table_import_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "table",
+            "required": true,
+            "schema": {
+              "title": "Table",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsvPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/databases/{database}/tables/{table}/indexes": {
+      "post": {
+        "operationId": "create_index__post__api_v1_connections_cid_databases_database_tables_table_indexes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "table",
+            "required": true,
+            "schema": {
+              "title": "Table",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IndexBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Index",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/databases/{database}/tables/{table}/indexes/{index}": {
+      "delete": {
+        "operationId": "drop_index__delete__api_v1_connections_cid_databases_database_tables_table_indexes_index",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "table",
+            "required": true,
+            "schema": {
+              "title": "Table",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DropBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Drop Index",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
     "/api/v1/connections/{cid}/databases/{database}/tables/{table}/rows": {
       "get": {
         "operationId": "table_rows__get__api_v1_connections_cid_databases_database_tables_table_rows",
@@ -5841,6 +9186,25 @@
               "title": "Table",
               "type": "string"
             }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
           }
         ],
         "requestBody": {
@@ -5982,6 +9346,25 @@
             "schema": {
               "title": "Table",
               "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
             }
           }
         ],
@@ -6457,6 +9840,150 @@
         "tags": [
           "explorer"
         ]
+      },
+      "post": {
+        "operationId": "mongo_create_database__post__api_v1_connections_cid_mongo_databases",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoDatabaseBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Create Database",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/mongo/databases/{database}": {
+      "delete": {
+        "operationId": "mongo_drop_database__delete__api_v1_connections_cid_mongo_databases_database",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DropBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Drop Database",
+        "tags": [
+          "administration"
+        ]
       }
     },
     "/api/v1/connections/{cid}/mongo/databases/{database}/collections": {
@@ -6509,9 +10036,169 @@
         "tags": [
           "explorer"
         ]
+      },
+      "post": {
+        "operationId": "mongo_create_collection__post__api_v1_connections_cid_mongo_databases_database_collections",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoCollectionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Create Collection",
+        "tags": [
+          "administration"
+        ]
       }
     },
     "/api/v1/connections/{cid}/mongo/databases/{database}/collections/{collection}": {
+      "delete": {
+        "operationId": "mongo_drop_collection__delete__api_v1_connections_cid_mongo_databases_database_collections_collection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "collection",
+            "required": true,
+            "schema": {
+              "title": "Collection",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DropBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Drop Collection",
+        "tags": [
+          "administration"
+        ]
+      },
       "get": {
         "operationId": "mongo_collection__get__api_v1_connections_cid_mongo_databases_database_collections_collection",
         "parameters": [
@@ -6815,6 +10502,25 @@
               "title": "Collection",
               "type": "string"
             }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
           }
         ],
         "requestBody": {
@@ -6956,6 +10662,25 @@
             "schema": {
               "title": "Collection",
               "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
             }
           }
         ],
@@ -7274,6 +10999,356 @@
         ]
       }
     },
+    "/api/v1/connections/{cid}/mongo/databases/{database}/collections/{collection}/import/commit": {
+      "post": {
+        "operationId": "commit_documents__post__api_v1_connections_cid_mongo_databases_database_collections_collection_import_commit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "collection",
+            "required": true,
+            "schema": {
+              "title": "Collection",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocCommit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportDone"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Commit Documents",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/mongo/databases/{database}/collections/{collection}/import/preview": {
+      "post": {
+        "operationId": "preview_documents__post__api_v1_connections_cid_mongo_databases_database_collections_collection_import_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "collection",
+            "required": true,
+            "schema": {
+              "title": "Collection",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Documents",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/mongo/databases/{database}/collections/{collection}/indexes": {
+      "post": {
+        "operationId": "mongo_create_index__post__api_v1_connections_cid_mongo_databases_database_collections_collection_indexes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "collection",
+            "required": true,
+            "schema": {
+              "title": "Collection",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoIndexBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Create Index",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/mongo/databases/{database}/collections/{collection}/indexes/{index}": {
+      "delete": {
+        "operationId": "mongo_drop_index__delete__api_v1_connections_cid_mongo_databases_database_collections_collection_indexes_index",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "collection",
+            "required": true,
+            "schema": {
+              "title": "Collection",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DropBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Drop Index",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
     "/api/v1/connections/{cid}/mongo/queries/execute": {
       "post": {
         "operationId": "execute_mongo__post__api_v1_connections_cid_mongo_queries_execute",
@@ -7286,6 +11361,25 @@
               "format": "uuid",
               "title": "Cid",
               "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
             }
           }
         ],
@@ -7868,6 +11962,108 @@
         ]
       }
     },
+    "/api/v1/connections/{cid}/scope-grants": {
+      "get": {
+        "operationId": "get_scope_grants__get__api_v1_connections_cid_scope-grants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScopeGrantOut"
+                  },
+                  "title": "Response Get Scope Grants  Get  Api V1 Connections Cid Scope-Grants",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Scope Grants",
+        "tags": [
+          "connections"
+        ]
+      },
+      "put": {
+        "operationId": "put_scope_grants__put__api_v1_connections_cid_scope-grants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScopeGrantsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScopeGrantOut"
+                  },
+                  "title": "Response Put Scope Grants  Put  Api V1 Connections Cid Scope-Grants",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Scope Grants",
+        "tags": [
+          "connections"
+        ]
+      }
+    },
     "/api/v1/connections/{cid}/sensitive": {
       "get": {
         "operationId": "list_markers__get__api_v1_connections_cid_sensitive",
@@ -8037,6 +12233,66 @@
         "summary": "User Directory",
         "tags": [
           "users"
+        ]
+      }
+    },
+    "/api/v1/governance/policies": {
+      "get": {
+        "operationId": "get_policies__get__api_v1_governance_policies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoliciesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Policies",
+        "tags": [
+          "governance"
+        ]
+      },
+      "put": {
+        "operationId": "put_policy__put__api_v1_governance_policies",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Policy",
+        "tags": [
+          "governance"
         ]
       }
     },
@@ -8216,6 +12472,89 @@
         ]
       }
     },
+    "/api/v1/settings/audit-sink": {
+      "get": {
+        "operationId": "get_audit_sink__get__api_v1_settings_audit-sink",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditSinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Audit Sink",
+        "tags": [
+          "administration"
+        ]
+      },
+      "put": {
+        "operationId": "put_audit_sink__put__api_v1_settings_audit-sink",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditSinkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditSinkOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Audit Sink",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
+    "/api/v1/settings/audit-sink/test": {
+      "post": {
+        "operationId": "test_audit_sink__post__api_v1_settings_audit-sink_test",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Test Audit Sink  Post  Api V1 Settings Audit-Sink Test",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Test Audit Sink",
+        "tags": [
+          "administration"
+        ]
+      }
+    },
     "/api/v1/settings/encryption/rotate": {
       "post": {
         "description": "Re-wrap stored data keys under the active KEK (set DBW_ACTIVE_KEK_ID, then call).",
@@ -8300,6 +12639,66 @@
         ]
       }
     },
+    "/api/v1/settings/oidc": {
+      "get": {
+        "operationId": "get_oidc__get__api_v1_settings_oidc",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Oidc",
+        "tags": [
+          "sso"
+        ]
+      },
+      "put": {
+        "operationId": "put_oidc__put__api_v1_settings_oidc",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Oidc",
+        "tags": [
+          "sso"
+        ]
+      }
+    },
     "/api/v1/settings/query-history": {
       "get": {
         "operationId": "get_history_settings__get__api_v1_settings_query-history",
@@ -8357,6 +12756,153 @@
         "summary": "Put History Settings",
         "tags": [
           "administration"
+        ]
+      }
+    },
+    "/api/v1/tokens": {
+      "get": {
+        "operationId": "list_tokens__get__api_v1_tokens",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "mine",
+              "enum": [
+                "mine",
+                "all"
+              ],
+              "title": "Scope",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TokenOut"
+                  },
+                  "title": "Response List Tokens  Get  Api V1 Tokens",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Tokens",
+        "tags": [
+          "tokens"
+        ]
+      },
+      "post": {
+        "operationId": "create_token__post__api_v1_tokens",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Token",
+        "tags": [
+          "tokens"
+        ]
+      }
+    },
+    "/api/v1/tokens/scopes": {
+      "get": {
+        "operationId": "available_scopes__get__api_v1_tokens_scopes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenScopes"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Available Scopes",
+        "tags": [
+          "tokens"
+        ]
+      }
+    },
+    "/api/v1/tokens/{token_id}": {
+      "delete": {
+        "operationId": "revoke_token__delete__api_v1_tokens_token_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Token Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Token",
+        "tags": [
+          "tokens"
         ]
       }
     },

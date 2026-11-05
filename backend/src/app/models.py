@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -278,3 +279,158 @@ class SavedQuery(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
+
+
+class ApiToken(Base):
+    """Scoped, expiring automation token. Only the SHA-256 of the secret is stored; the
+    effective permissions are the intersection of ``scopes`` and the owner's own rights."""
+
+    __tablename__ = "api_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(120))
+    prefix: Mapped[str] = mapped_column(String(16))  # display only, e.g. "dbw_a1b2c3d4"
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    scopes: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    connection_ids: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped[User] = relationship(lazy="joined")
+
+
+class ApprovalPolicy(Base):
+    """Operations that need a second person's approval. Scoped to one connection *or* to an
+    environment (a connection-specific policy replaces the environment one)."""
+
+    __tablename__ = "approval_policies"
+    __table_args__ = (
+        CheckConstraint(
+            "(connection_id IS NULL) <> (environment IS NULL)", name="ck_policy_one_scope"
+        ),
+        Index(
+            "uq_policy_connection",
+            "connection_id",
+            unique=True,
+            postgresql_where="connection_id IS NOT NULL",
+        ),
+        Index(
+            "uq_policy_environment",
+            "environment",
+            unique=True,
+            postgresql_where="environment IS NOT NULL",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    connection_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("connections.id", ondelete="CASCADE"), nullable=True
+    )
+    environment: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    operations: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Approval(Base):
+    """A request to run one specific operation. Bound to the requester, the operation and a
+    digest of its parameters; single use; expires."""
+
+    __tablename__ = "approvals"
+    __table_args__ = (Index("ix_approvals_status_created", "status", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("connections.id", ondelete="CASCADE"), index=True
+    )
+    requester_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    operation: Mapped[str] = mapped_column(String(60))
+    params_digest: Mapped[str] = mapped_column(String(64))
+    summary: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)  # what the approver sees
+    # pending | approved | rejected | executed | cancelled
+    status: Mapped[str] = mapped_column(String(12), default="pending")
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class UserIdentity(Base):
+    """Link between a DB Wrench user and an external (OIDC) subject."""
+
+    __tablename__ = "user_identities"
+    __table_args__ = (UniqueConstraint("provider", "subject"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    provider: Mapped[str] = mapped_column(String(20))
+    subject: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class OidcLoginState(Base):
+    """Server-side state of an in-flight OIDC login (so any replica can finish it)."""
+
+    __tablename__ = "oidc_login_states"
+
+    state_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    nonce: Mapped[str] = mapped_column(String(64))
+    code_verifier: Mapped[str] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ScopeGrant(Base):
+    """A role granted on part of a connection: a database, a schema or a table. Adds the role's
+    permissions for objects inside that scope; deny by default everywhere else."""
+
+    __tablename__ = "scope_grants"
+    __table_args__ = (UniqueConstraint("user_id", "connection_id", "database", "schema", "object"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("connections.id", ondelete="CASCADE"), index=True
+    )
+    database: Mapped[str] = mapped_column(String(255))
+    schema: Mapped[str] = mapped_column(String(255), default="")  # "" = whole database
+    object: Mapped[str] = mapped_column(String(255), default="")  # "" = whole schema/database
+    role_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("roles.id"))
+
+    role: Mapped[Role] = relationship(lazy="joined")
+
+
+class UserCredential(Base):
+    """A user's own login for a ``credential_model = per_user`` connection (envelope-encrypted,
+    bound to the user and the connection by the encryption context)."""
+
+    __tablename__ = "user_credentials"
+    __table_args__ = (UniqueConstraint("user_id", "connection_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("connections.id", ondelete="CASCADE"), index=True
+    )
+    username: Mapped[str] = mapped_column(String(255))
+    secret: Mapped[str] = mapped_column(Text)  # envelope-encrypted JSON {"password": ...}
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

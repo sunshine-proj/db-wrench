@@ -41,6 +41,7 @@ class Perm(StrEnum):
     ADMIN_MANAGE_INDEXES = "admin.manage_indexes"
     ADMIN_MANAGE_USERS = "admin.manage_users"
     ADMIN_MANAGE_PRIVILEGES = "admin.manage_privileges"
+    GOVERNANCE_APPROVE = "governance.approve"
     # app scope
     CONNECTION_CREATE = "connection.create"
     AUDIT_VIEW = "audit.view"

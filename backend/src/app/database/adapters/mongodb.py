@@ -9,6 +9,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 import tempfile
 import threading
 import time
@@ -360,6 +361,187 @@ class MongoAdapter(DocumentAdapter):
             doc_keys=doc_keys,
         )
 
+    # ---- Phase 5: administration ------------------------------------------------------
+
+    PROTECTED_DATABASES = frozenset({"admin", "local", "config"})
+    _NEW_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_\-]{0,62}$")
+    _INDEX_DIRECTIONS: frozenset[Any] = frozenset({1, -1, "text", "hashed", "2dsphere"})
+    MAX_INDEX_KEYS = 32
+
+    def _assert_admin_writable(self) -> None:
+        if not self.spec.allow_writes:
+            raise Forbidden("This connection is read-only.")
+
+    def _new_name(self, kind: str, name: str) -> str:
+        if not isinstance(name, str) or not self._NEW_NAME.fullmatch(name):
+            raise ValidationFailed(
+                f"Invalid {kind} name. Use 1-63 letters, digits, '_' or '-', starting with a "
+                "letter or underscore."
+            )
+        return name
+
+    def create_database(self, name: str, first_collection: str) -> None:
+        self._assert_admin_writable()
+        self._new_name("database", name)
+        self._new_name("collection", first_collection)
+        if name.lower() in self.PROTECTED_DATABASES:
+            raise Forbidden(f"{name!r} is a system database.")
+        if name.lower() in {d.name.lower() for d in self.list_databases()}:
+            raise Conflict(f"Database {name!r} already exists.")
+        with self._errors():
+            self._client()[name].create_collection(first_collection)
+        self._meta.clear()
+
+    def drop_database(self, name: str) -> None:
+        self._assert_admin_writable()
+        self._require_database(name)
+        if name.lower() in self.PROTECTED_DATABASES:
+            raise Forbidden(f"{name!r} is a system database and cannot be dropped.")
+        with self._errors():
+            self._client().drop_database(name)
+        self._meta.clear()
+
+    def create_collection(
+        self, database: str, name: str, options: dict[str, Any] | None = None
+    ) -> None:
+        self._assert_admin_writable()
+        self._require_database(database)
+        self._new_name("collection", name)
+        if name in {c.name for c in self.list_collections(database)}:
+            raise Conflict(f"Collection {name!r} already exists.")
+        opts = dict(options or {})
+        kwargs: dict[str, Any] = {}
+        if opts.pop("capped", False):
+            size = opts.pop("size_bytes", None)
+            if not isinstance(size, int) or isinstance(size, bool) or not 1 <= size <= 1 << 40:
+                raise ValidationFailed("A capped collection needs size_bytes (1 .. 2^40).")
+            kwargs.update(capped=True, size=size)
+            max_docs = opts.pop("max_docs", None)
+            if max_docs is not None:
+                if not isinstance(max_docs, int) or isinstance(max_docs, bool) or max_docs < 1:
+                    raise ValidationFailed("max_docs must be a positive integer.")
+                kwargs["max"] = max_docs
+        if opts:
+            raise ValidationFailed(f"Unknown option(s): {', '.join(sorted(opts))}.")
+        with self._errors():
+            self._client()[database].create_collection(name, **kwargs)
+        self._meta.clear()
+
+    def drop_collection(self, database: str, collection: str) -> None:
+        self._assert_admin_writable()
+        self._require_collection(database, collection)  # system.* collections are never listed
+        with self._errors():
+            self._client()[database].drop_collection(collection)
+        self._meta.clear()
+
+    def create_index(  # noqa: PLR0913
+        self,
+        database: str,
+        collection: str,
+        keys: list[tuple[str, Any]],
+        *,
+        name: str | None = None,
+        unique: bool = False,
+        sparse: bool = False,
+        ttl_seconds: int | None = None,
+        partial_filter: dict[str, Any] | None = None,
+    ) -> str:
+        from app.database.document.filters import check_field_name
+
+        self._assert_admin_writable()
+        info = self._require_collection(database, collection)
+        if info.type != "collection":
+            raise ValidationFailed("Indexes can only be created on collections.")
+        if not keys or len(keys) > self.MAX_INDEX_KEYS:
+            raise ValidationFailed(f"An index needs 1-{self.MAX_INDEX_KEYS} keys.")
+        seen: set[str] = set()
+        for field, direction in keys:
+            check_field_name(field)
+            if field in seen:
+                raise ValidationFailed(f"Field {field!r} appears twice in the index.")
+            seen.add(field)
+            if isinstance(direction, bool) or direction not in self._INDEX_DIRECTIONS:
+                raise ValidationFailed(
+                    "Index direction must be 1, -1, 'text', 'hashed' or '2dsphere'."
+                )
+        kwargs: dict[str, Any] = {}
+        if name is not None:
+            self._new_name("index", name)
+            kwargs["name"] = name
+        if unique:
+            kwargs["unique"] = True
+        if sparse:
+            kwargs["sparse"] = True
+        if ttl_seconds is not None:
+            if len(keys) != 1 or isinstance(ttl_seconds, bool) or ttl_seconds < 0:
+                raise ValidationFailed("A TTL index needs exactly one key and seconds >= 0.")
+            kwargs["expireAfterSeconds"] = ttl_seconds
+        if partial_filter:
+            kwargs["partialFilterExpression"] = partial_filter
+        with self._errors():
+            try:
+                created: str = self._client()[database][collection].create_index(
+                    [(f, d) for f, d in keys],
+                    maxTimeMS=self.limits.max_statement_timeout_s * 1000,
+                    **kwargs,
+                )
+            except pymongo.errors.DuplicateKeyError as exc:
+                raise Conflict("Existing documents violate the unique index.") from exc
+        self._meta.clear()
+        return created
+
+    def drop_index(self, database: str, collection: str, name: str) -> None:
+        self._assert_admin_writable()
+        self._require_collection(database, collection)
+        if name == "_id_":
+            raise Conflict("The _id index cannot be dropped.")
+        with self._errors():
+            existing = {ix["name"] for ix in self._client()[database][collection].list_indexes()}
+            if name not in existing:
+                raise NotFound(f"Index {name!r} was not found.")
+            self._client()[database][collection].drop_index(name)
+        self._meta.clear()
+
+    # ---- Phase 5: import --------------------------------------------------------------
+
+    def existing_ids(self, database: str, collection: str, ids: list[Any]) -> set[Any]:
+        coll = self._client()[database][self._require_collection(database, collection).name]
+        found: set[Any] = set()
+        with self._errors():
+            for i in range(0, len(ids), 1000):
+                chunk = ids[i : i + 1000]
+                found.update(
+                    d["_id"]
+                    for d in coll.find({"_id": {"$in": chunk}}, {"_id": 1}).max_time_ms(
+                        self.limits.statement_timeout_s * 1000
+                    )
+                )
+        return found
+
+    def import_documents(
+        self, database: str, collection: str, docs: list[dict[str, Any]]
+    ) -> tuple[int, list[dict[str, Any]]]:
+        coll = self._writable_collection(database, collection)
+        inserted = 0
+        errors: list[dict[str, Any]] = []
+        with self._errors():
+            for i in range(0, len(docs), 1000):
+                chunk = docs[i : i + 1000]
+                try:
+                    inserted += len(coll.insert_many(chunk, ordered=False).inserted_ids)
+                except pymongo.errors.BulkWriteError as exc:
+                    details = exc.details or {}
+                    inserted += int(details.get("nInserted", 0))
+                    errors.extend(
+                        {
+                            "index": i + int(e["index"]),
+                            "code": e.get("code"),
+                            "message": "write rejected",
+                        }
+                        for e in details.get("writeErrors", [])
+                    )
+        return inserted, errors
+
     # ---- Phase 3: writes and streaming ------------------------------------------------
 
     def _writable_collection(self, database: str, collection: str) -> Any:
@@ -540,7 +722,10 @@ class MongoAdapter(DocumentAdapter):
         max_docs: int,
         timeout_s: int,
         comment: str,
+        write: bool = False,
     ) -> tuple[list[dict[str, Any]], bool]:
+        if write and not self.spec.allow_writes:
+            raise Forbidden("This connection is read-only.")
         info = self._require_collection(database, collection)
         coll = self._client()[database][collection]
         with self._errors():

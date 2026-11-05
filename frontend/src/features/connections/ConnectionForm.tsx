@@ -27,6 +27,7 @@ interface FormState {
   pool_max: string;
   read_only: boolean;
   enabled: boolean;
+  credential_model: "shared" | "per_user";
   auth_source: string;
 }
 
@@ -46,6 +47,7 @@ function initial(c?: Connection): FormState {
     pool_max: String(c?.pool_max ?? 10),
     read_only: c?.read_only ?? true,
     enabled: c?.enabled ?? true,
+    credential_model: c?.credential_model ?? "shared",
     auth_source: String((c?.options?.["auth_source"] as string | undefined) ?? ""),
   };
 }
@@ -66,6 +68,7 @@ export function toInput(f: FormState, editing: boolean): Partial<ConnectionInput
     pool_max: Number(f.pool_max),
     read_only: f.read_only,
     enabled: f.enabled,
+    credential_model: f.credential_model,
     options,
   };
   if (f.tls_ca.trim()) body.tls_ca = f.tls_ca.trim();
@@ -281,6 +284,18 @@ export function ConnectionFormDialog({
               )}
             </Field>
           </div>
+          <Field label={t("connections.credentialModel")}>
+            {(p) => (
+              <Select
+                {...p}
+                value={f.credential_model}
+                onChange={(e) => set("credential_model", e.target.value as "shared" | "per_user")}
+              >
+                <option value="shared">{t("connections.credShared")}</option>
+                <option value="per_user">{t("connections.credPerUser")}</option>
+              </Select>
+            )}
+          </Field>
           <div className="space-y-2">
             <Checkbox
               label={t("connections.readOnly")}

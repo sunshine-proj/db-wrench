@@ -89,7 +89,7 @@ export interface Connection {
   database: string | null;
   username: string;
   has_password: boolean;
-  credential_model: string;
+  credential_model: "shared" | "per_user";
   tls_mode: TlsMode;
   has_tls_ca: boolean;
   connect_timeout_s: number;
@@ -119,6 +119,7 @@ export interface ConnectionInput {
   read_only: boolean;
   enabled: boolean;
   options: Record<string, unknown>;
+  credential_model?: "shared" | "per_user";
 }
 
 export interface TestResult {
@@ -462,4 +463,130 @@ export interface SavedQuery {
 export interface HistorySettings {
   retention_days: number;
   store_literals: boolean;
+}
+
+// ------------------------------------------------------------------ Phase 5
+
+export interface Approval {
+  id: string;
+  connection_id: string;
+  connection_name: string | null;
+  environment: string | null;
+  requester: string | null;
+  operation: string;
+  summary: Record<string, unknown>;
+  status: "pending" | "approved" | "rejected" | "executed" | "cancelled" | "expired";
+  reason: string | null;
+  decided_by: string | null;
+  created_at: string;
+  decided_at: string | null;
+  expires_at: string;
+}
+
+export interface ApprovalPolicy {
+  connection_id: string | null;
+  connection_name: string | null;
+  environment: string | null;
+  operations: string[];
+}
+
+export interface PoliciesResponse {
+  policies: ApprovalPolicy[];
+  available_operations: string[];
+  always_approved: string[];
+}
+
+export interface ApiTokenInfo {
+  id: string;
+  name: string;
+  prefix: string;
+  owner: string;
+  scopes: string[];
+  connection_ids: string[] | null;
+  created_at: string;
+  expires_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  active: boolean;
+}
+
+export interface ApiTokenCreated extends ApiTokenInfo {
+  secret: string;
+}
+
+export interface AuditSink {
+  enabled: boolean;
+  protocol: "udp" | "tcp" | "tls";
+  host: string;
+  port: number;
+  format: "rfc5424" | "json";
+  facility: number;
+  last_forwarded_id: number;
+}
+
+export interface RoleMapping {
+  group: string;
+  role: string;
+}
+
+export interface OidcConfig {
+  enabled: boolean;
+  issuer: string;
+  client_id: string;
+  client_secret_set: boolean;
+  scopes: string;
+  groups_claim: string;
+  username_claim: string;
+  display_name: string;
+  role_mappings: RoleMapping[];
+  default_role: string | null;
+  redirect_uri: string | null;
+}
+
+export interface OidcPublic {
+  enabled: boolean;
+  display_name: string;
+}
+
+export interface ScopeGrant {
+  user_id: string;
+  username: string;
+  role_id: string;
+  role: string;
+  database: string;
+  schema: string;
+  object: string;
+}
+
+export interface CredentialsStatus {
+  required: boolean;
+  configured: boolean;
+  username: string | null;
+}
+
+export interface CsvImportOptions {
+  content: string;
+  delimiter: "," | ";" | "tab" | "|";
+  has_header: boolean;
+  mapping?: Record<string, string> | null;
+  empty_as_null: boolean;
+}
+
+export interface CsvPreview {
+  rows: number;
+  valid_rows: number;
+  errors: { row: number; message: string }[];
+  columns: string[];
+  sample: (string | null)[][];
+  token: string | null;
+  requires_confirmation: boolean;
+}
+
+export interface DocImportPreview {
+  documents: number;
+  valid_documents: number;
+  errors: { index: number; message: string }[];
+  sample: unknown[];
+  token: string | null;
+  requires_confirmation: boolean;
 }

@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
+from fastapi import Header
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -198,6 +199,7 @@ class ConnectionBase(Strict):
     pool_max: int = Field(default=10, ge=1, le=50)
     read_only: bool = True
     enabled: bool = True
+    credential_model: Literal["shared", "per_user"] = "shared"
     options: dict[str, Any] = Field(default_factory=dict)
 
     _v_name = field_validator("name")(_check_name)
@@ -225,6 +227,7 @@ class ConnectionUpdate(Strict):
     pool_max: int | None = Field(default=None, ge=1, le=50)
     read_only: bool | None = None
     enabled: bool | None = None
+    credential_model: Literal["shared", "per_user"] | None = None
     options: dict[str, Any] | None = None
 
     @field_validator("name")
@@ -301,3 +304,48 @@ class NetworkPolicyOut(BaseModel):
     allow_hosts: list[str]
     allow_loopback: bool
     always_denied: list[str]
+
+
+ApprovalId = Annotated[
+    uuid.UUID | None,
+    Header(alias="Approval-Id", description="Id of an approved request for this operation."),
+]
+
+
+class CredentialsIn(Strict):
+    username: str = Field(min_length=1, max_length=255)
+    password: SecretStr
+
+
+class CredentialsOut(BaseModel):
+    """Never contains the password."""
+
+    required: bool
+    configured: bool
+    username: str | None
+
+
+class ScopeGrantIn(Strict):
+    user_id: uuid.UUID
+    role_id: uuid.UUID
+    database: str = Field(min_length=1, max_length=255)
+    schema_name: str = Field(default="", alias="schema", max_length=255)
+    object: str = Field(default="", max_length=255)
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+
+class ScopeGrantsUpdate(Strict):
+    grants: list[ScopeGrantIn] = Field(max_length=2000)
+
+
+class ScopeGrantOut(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    user_id: uuid.UUID
+    username: str
+    role_id: uuid.UUID
+    role: str
+    database: str
+    schema_name: str = Field(alias="schema")
+    object: str

@@ -34,6 +34,7 @@ from app.database.relational.models import (
 )
 from app.database.relational.sql_builder import PostgresDialect
 from app.errors import (
+    Conflict,
     ConnectionFailed,
     Forbidden,
     NotFound,
@@ -410,6 +411,77 @@ class PostgresAdapter(RelationalAdapter):
             raise NotFound("Function not found.")
         r = rows[0]
         return FunctionInfo(r[0], r[1], r[2], r[3], r[4], _PROKIND.get(r[5], "function"), r[6])
+
+    # ---- Phase 5: administration ------------------------------------------------------
+
+    PROTECTED_DATABASES = frozenset({"postgres", "template0", "template1"})
+    PROTECTED_SCHEMAS = frozenset({"public", "information_schema"})
+
+    def _admin_conn(self, database: str | None) -> Any:
+        conn = self._connect(
+            database or self._default_db(),
+            writable=True,
+            timeout_s=self.limits.max_statement_timeout_s,
+        )
+        conn.autocommit = True
+        return conn
+
+    def _database_names(self) -> set[str]:
+        return {d.name for d in self.list_databases()}
+
+    def _forget_database(self, database: str) -> None:
+        with self._lock:
+            eng = self._engines.pop(database, None)
+        if eng is not None:
+            eng.dispose()
+
+    def _create_database_sql(self, name: str, options: dict[str, Any]) -> str:
+        if options:
+            raise ValidationFailed("PostgreSQL databases take no creation options here.")
+        return f"CREATE DATABASE {self.dialect.quote(name)}"
+
+    def _drop_database_sql(self, name: str) -> str:
+        # FORCE (PostgreSQL 13+, supported floor is 14) terminates other sessions so a
+        # lingering pooled connection cannot block the drop.
+        return f"DROP DATABASE {self.dialect.quote(name)} WITH (FORCE)"
+
+    def create_schema(self, database: str, schema: str) -> None:
+        from app.database.relational.admin import validate_new_name
+
+        validate_new_name("schema", schema)
+        if schema.lower().startswith("pg_"):
+            raise ValidationFailed("Schema names starting with 'pg_' are reserved.")
+        self._assert_admin_writable()
+        self._require_database(database)
+        if schema in {s.name for s in self.list_schemas(database)}:
+            raise Conflict(f"Schema {schema!r} already exists.")
+        with self._admin_cursor(database) as cur:
+            cur.execute(f"CREATE SCHEMA {self.dialect.quote(schema)}")
+        self._refresh()
+
+    def drop_schema(self, database: str, schema: str) -> None:
+        self._assert_admin_writable()
+        self._require_database(database)
+        if schema not in {s.name for s in self.list_schemas(database)}:
+            raise NotFound(f"Schema {schema!r} was not found.")
+        if schema.lower() in self.PROTECTED_SCHEMAS or schema.lower().startswith("pg_"):
+            raise Forbidden(f"{schema!r} is a system schema and cannot be dropped.")
+        with self._admin_cursor(database) as cur:
+            cur.execute(f"DROP SCHEMA {self.dialect.quote(schema)} RESTRICT")
+        self._refresh()
+
+    def _create_index_sql(
+        self, schema: str | None, table: str, name: str, columns: list[str], unique: bool
+    ) -> str:
+        d = self.dialect
+        cols = ", ".join(d.quote(c) for c in columns)
+        return (
+            f"CREATE {'UNIQUE ' if unique else ''}INDEX {d.quote(name)} "
+            f"ON {d.qualified(self._need_schema(schema), table)} ({cols})"
+        )
+
+    def _drop_index_sql(self, schema: str | None, table: str, name: str) -> str:
+        return f"DROP INDEX {self.dialect.qualified(self._need_schema(schema), name)}"
 
     # ---- Phase 3: writes and streaming ------------------------------------------------
 

@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     session_idle_minutes: int = 30
     session_absolute_hours: int = 12
     allowed_origins: list[str] = Field(default_factory=list)
+    public_url: str | None = None  # externally visible base URL (needed for SSO redirects)
     # Number of trusted reverse proxies in front of the backend (0 = ignore X-Forwarded-For).
     trusted_proxy_hops: int = 0
 
@@ -71,6 +72,14 @@ class Settings(BaseSettings):
     max_statement_timeout_s: int = 300
     concurrent_queries_per_user: int = 5
     history_purge_interval_s: int = 3600
+    audit_forward_interval_s: int = 5
+    # OpenTelemetry tracing (opt-in; needs the 'otel' extra)
+    otel_enabled: bool = False
+    otel_endpoint: str | None = None  # OTLP/HTTP, e.g. https://collector:4318
+    otel_service_name: str = "db-wrench"
+    otel_sample_ratio: float = Field(default=1.0, ge=0.0, le=1.0)
+    import_max_rows: int = 100_000
+    import_max_documents: int = 50_000
     default_pool_size: int = 10
     concurrent_queries_per_connection: int = 20
     db_worker_threads: int = 32

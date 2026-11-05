@@ -8,12 +8,14 @@ import { Input, Select } from "@/components/ui/form";
 import { Alert, Badge, PageHeader, Spinner, Table, Td, Th } from "@/components/ui/misc";
 import { JsonNode } from "@/features/data-browser/JsonTree";
 import { t } from "@/i18n";
-import { auditApi } from "@/services/api";
+import { useAuth } from "@/hooks/useAuth";
+import { auditApi, auditSinkApi } from "@/services/api";
 import type { AuditEvent } from "@/types/api";
 
 const RESULT_VARIANT = { success: "success", failure: "destructive", denied: "warning" } as const;
 
 export function AuditPage() {
+  const { can } = useAuth();
   const [action, setAction] = useState("");
   const [actor, setActor] = useState("");
   const [result, setResult] = useState("");
@@ -42,9 +44,26 @@ export function AuditPage() {
         title={t("audit.title")}
         description={t("audit.description")}
         actions={
-          <Button variant="outline" onClick={() => verify.mutate()} disabled={verify.isPending}>
-            <ShieldCheck /> {t("audit.verify")}
-          </Button>
+          <>
+            {can("audit.export") &&
+              (["csv", "json", "ndjson"] as const).map((f) => (
+                <Button key={f} asChild variant="outline">
+                  <a
+                    href={auditSinkApi.exportUrl(f, {
+                      action: applied.action,
+                      result: applied.result,
+                      actor: applied.actor,
+                    })}
+                    download
+                  >
+                    {t("audit.export")} {f.toUpperCase()}
+                  </a>
+                </Button>
+              ))}
+            <Button variant="outline" onClick={() => verify.mutate()} disabled={verify.isPending}>
+              <ShieldCheck /> {t("audit.verify")}
+            </Button>
+          </>
         }
       />
       {verify.data && (

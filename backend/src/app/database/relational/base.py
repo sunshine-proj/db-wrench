@@ -8,7 +8,9 @@ from typing import Any
 
 from app.database.core.base import DatabaseAdapter, TtlCache
 from app.database.core.serialization import approx_size, to_json_value
+from app.database.relational.admin import RelationalAdmin
 from app.database.relational.editing import RelationalEditing
+from app.database.relational.importing import RelationalImport
 from app.database.relational.models import (
     DatabaseInfo,
     FunctionInfo,
@@ -24,7 +26,7 @@ from app.database.relational.sql_builder import Dialect, build_select, encode_cu
 from app.errors import NotFound, UnsupportedCapability
 
 
-class RelationalAdapter(DatabaseAdapter, RelationalEditing, ABC):
+class RelationalAdapter(DatabaseAdapter, RelationalEditing, RelationalAdmin, RelationalImport, ABC):
     dialect: Dialect
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

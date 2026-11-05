@@ -51,6 +51,7 @@ class Actor:
     user_id: uuid.UUID | None = None
     username: str | None = None
     ip: str | None = None
+    token_id: uuid.UUID | None = None  # set when the request used an API token
 
 
 async def record(
@@ -64,6 +65,8 @@ async def record(
 ) -> None:
     """Persist an audit event. Never raises into the request path."""
     actor = actor or Actor()
+    if actor.token_id is not None:  # who acted through which token (PRD 5.10)
+        detail = {**(detail or {}), "api_token_id": str(actor.token_id)}
     try:
         async with session_factory()() as session, session.begin():
             await session.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": _LOCK_KEY})

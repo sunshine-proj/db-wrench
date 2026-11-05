@@ -75,3 +75,7 @@ def configure_logging(level: str = "INFO") -> None:
 
 def log(event: str, **fields: Any) -> None:
     logger.info(event, extra={"fields": fields})
+
+
+AUDIT_FORWARDED = Counter("dbw_audit_forwarded_total", "Audit events delivered to the SIEM sink")
+AUDIT_FORWARD_ERRORS = Counter("dbw_audit_forward_errors_total", "Failed audit forwarding attempts")

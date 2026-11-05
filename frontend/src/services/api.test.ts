@@ -144,3 +144,41 @@ describe("api client", () => {
     expect(rowParams({ limit: 5, searchColumns: ["a"] }).search_columns).toBeUndefined();
   });
 });
+
+describe("approvals and Phase 5 clients", () => {
+  it("attaches Approval-Id only to the wrapped request", async () => {
+    const { withApproval, adminApi } = await import("./api");
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ name: "x" })));
+    await withApproval("appr-1", () => adminApi.createDatabase("c1", "x"));
+    expect(lastCall().headers["Approval-Id"]).toBe("appr-1");
+    await adminApi.createDatabase("c1", "y");
+    expect(lastCall().headers["Approval-Id"]).toBeUndefined(); // never leaks to later calls
+    await withApproval(undefined, () => adminApi.createDatabase("c1", "z"));
+    expect(lastCall().headers["Approval-Id"]).toBeUndefined();
+  });
+
+  it("sends DELETE confirmations in the body, path-encoded", async () => {
+    const { adminApi } = await import("./api");
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await adminApi.dropDatabase("c1", "my db/../x");
+    const { url, init } = lastCall();
+    expect(url).toBe("/api/v1/connections/c1/databases/my%20db%2F..%2Fx");
+    expect(JSON.parse(init.body as string)).toEqual({ confirm: "my db/../x" });
+  });
+
+  it("addresses PostgreSQL and MySQL indexes with and without the schema segment", async () => {
+    const { adminApi } = await import("./api");
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ name: "ix" })));
+    await adminApi.createIndex({ cid: "c", db: "d", schema: "s", table: "t" }, "ix", ["a"], true);
+    expect(lastCall().url).toBe("/api/v1/connections/c/databases/d/schemas/s/tables/t/indexes");
+    await adminApi.createIndex({ cid: "c", db: "d", table: "t" }, "ix", ["a"], false);
+    expect(lastCall().url).toBe("/api/v1/connections/c/databases/d/tables/t/indexes");
+  });
+
+  it("builds same-origin export URLs with the chosen filters", async () => {
+    const { auditSinkApi } = await import("./api");
+    expect(auditSinkApi.exportUrl("csv", { action: "auth", result: "" })).toBe(
+      "/api/v1/audit/export?format=csv&action=auth",
+    );
+  });
+});

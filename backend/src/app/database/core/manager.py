@@ -50,10 +50,16 @@ class AdapterManager:
         return adapter
 
     def invalidate(self, connection_id: uuid.UUID) -> None:
+        """Drop the adapter for a connection and every per-user adapter derived from it."""
         with self._lock:
-            hit = self._cache.pop(connection_id, None)
-        if hit:
-            self._close_quietly(hit[1])
+            ids = [
+                cid
+                for cid, (_, a) in self._cache.items()
+                if cid == connection_id or a.spec.parent_id == connection_id
+            ]
+            hits = [self._cache.pop(cid) for cid in ids]
+        for _, adapter in hits:
+            self._close_quietly(adapter)
 
     def _sweep_locked(self) -> None:
         now = time.monotonic()

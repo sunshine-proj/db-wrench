@@ -20,7 +20,8 @@ release.
 
 In scope: authentication, authorization, credential storage, SSRF and network
 policy bypass, SQL/NoSQL injection, read-only enforcement bypass, audit
-tampering, and sensitive-data exposure.
+tampering, sensitive-data exposure, single sign-on (token validation, account
+linking), API token scoping, approval-workflow bypass, and import / MongoDB write-stage abuse.
 
 ## Hardening reference
 

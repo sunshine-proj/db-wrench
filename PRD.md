@@ -464,6 +464,11 @@ For regulated environments:
   authorized user before execution
 - Policies are configurable per connection and role and are fully audited
 
+Implementation note (Phase 5): policies are configurable per connection and per environment (a
+connection policy replaces the environment one); per-role policies remain future work. Approvals are
+bound to the requester and to the exact request, expire after 24 hours and work once (ADR-0011).
+MongoDB `$out`/`$merge` always require an approval.
+
 ## 6. Architecture
 
 Use a modular monolithic backend and a separate frontend application. The

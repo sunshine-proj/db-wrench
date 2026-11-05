@@ -11,6 +11,7 @@ from fastapi.routing import APIRoute
 
 from app.api.admin import health
 from app.api.router import api_router
+from app.audit.sink import forward_loop
 from app.config import get_settings
 from app.db import dispose_engine
 from app.errors import install_error_handlers
@@ -19,10 +20,11 @@ from app.observability import configure_logging, log
 from app.query.service import purge_loop
 from app.services.bootstrap import run_startup
 from app.services.runtime import reset_runtime
+from app.tracing import setup_tracing
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from app.database.core.manager import reset_adapter_manager
 
     settings = get_settings()
@@ -31,9 +33,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         log("warning_loopback_allowed", note="DBW_NETWORK_ALLOW_LOOPBACK is on (development only)")
     await run_startup()
     purge = asyncio.create_task(purge_loop(settings.history_purge_interval_s))
+    forwarder = asyncio.create_task(forward_loop(settings))
     yield
     purge.cancel()
-    await asyncio.gather(purge, return_exceptions=True)
+    forwarder.cancel()
+    await asyncio.gather(purge, forwarder, return_exceptions=True)
+    app.state.stop_tracing()
     reset_adapter_manager()
     reset_runtime()
     await dispose_engine()
@@ -61,6 +66,8 @@ def create_app() -> FastAPI:
     app.include_router(api_router)
     app.include_router(health)
     app.add_middleware(CoreMiddleware, max_body_bytes=settings.max_request_bytes)
+    # Before the first request: middleware cannot be added to a started application.
+    app.state.stop_tracing = setup_tracing(app, settings)
     return app
 
 

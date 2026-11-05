@@ -127,7 +127,16 @@ class MySQLAdapter(RelationalAdapter):
             # PyMySQL verifies the certificate against the connect host, so full verification
             # connects by name (the resolution was validated above); verify-ca can pin the IP.
             kwargs["host"] = s.host if mode == TlsMode.VERIFY_FULL else pinned
-        return pymysql.connect(**kwargs)
+        try:
+            return pymysql.connect(**kwargs)
+        except AttributeError as exc:
+            # PyMySQL crashes on the *first* login of a caching_sha2_password account over a
+            # plain connection (the server then asks for full authentication); once the server
+            # has cached the credential the same login works. Retry exactly once, and only for
+            # that signature, so real errors are never masked.
+            if "is_auth_switch_request" not in str(exc):
+                raise
+            return pymysql.connect(**kwargs)
 
     def _engine(self) -> Engine:
         with self._lock:
@@ -348,6 +357,53 @@ class MySQLAdapter(RelationalAdapter):
             estimated_rows=int(est) if est is not None else None,
             comment=comment or None,
         )
+
+    # ---- Phase 5: administration ------------------------------------------------------
+
+    PROTECTED_DATABASES = frozenset(SYSTEM_DATABASES)
+
+    def _admin_conn(self, database: str | None) -> Any:
+        conn = self._connect(writable=True)
+        if database:
+            conn.select_db(database)
+        conn.autocommit(True)
+        return conn
+
+    def _database_names(self) -> set[str]:
+        return {d.name for d in self.list_databases()}
+
+    def _forget_database(self, database: str) -> None:
+        return None  # one shared pool; connections select the database per use
+
+    def _create_database_sql(self, name: str, options: dict[str, Any]) -> str:
+        from app.database.relational.admin import MYSQL_CHARSETS
+
+        extra = ""
+        charset = options.get("charset")
+        if charset is not None:
+            if charset not in MYSQL_CHARSETS:
+                raise ValidationFailed(f"Unsupported charset; use one of {sorted(MYSQL_CHARSETS)}.")
+            extra = f" CHARACTER SET {charset}"
+        unknown = set(options) - {"charset"}
+        if unknown:
+            raise ValidationFailed(f"Unknown option(s): {', '.join(sorted(unknown))}.")
+        return f"CREATE DATABASE {self.dialect.quote(name)}{extra}"
+
+    def _drop_database_sql(self, name: str) -> str:
+        return f"DROP DATABASE {self.dialect.quote(name)}"
+
+    def _create_index_sql(
+        self, schema: str | None, table: str, name: str, columns: list[str], unique: bool
+    ) -> str:
+        d = self.dialect
+        cols = ", ".join(d.quote(c) for c in columns)
+        return (
+            f"CREATE {'UNIQUE ' if unique else ''}INDEX {d.quote(name)} "
+            f"ON {d.qualified(schema, table)} ({cols})"
+        )
+
+    def _drop_index_sql(self, schema: str | None, table: str, name: str) -> str:
+        return f"DROP INDEX {self.dialect.quote(name)} ON {self.dialect.qualified(schema, table)}"
 
     # ---- Phase 3: writes and streaming ------------------------------------------------
 

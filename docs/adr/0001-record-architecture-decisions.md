@@ -25,3 +25,8 @@ using the sections Status, Context, Decision, and Consequences.
   - ADR-0008: Read-only enforcement for user-authored SQL
   - ADR-0009: Sensitive-field masking
   - ADR-0010: Query execution, operations and cancellation
+  - ADR-0011: Administration, environment policies and four-eyes approvals
+  - ADR-0012: OIDC single sign-on and group-to-role mapping
+  - ADR-0013: API tokens and grants below connection level
+  - ADR-0014: Import with preview, and per-user managed-database credentials
+  - ADR-0015: Audit export, SIEM forwarding and OpenTelemetry tracing

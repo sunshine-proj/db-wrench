@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 
@@ -12,8 +12,12 @@ from app.api.schemas import (
     ConnectionOut,
     ConnectionTestOut,
     ConnectionUpdate,
+    CredentialsIn,
+    CredentialsOut,
     GrantOut,
     GrantsUpdate,
+    ScopeGrantOut,
+    ScopeGrantsUpdate,
 )
 from app.audit import service as audit
 from app.auth.deps import AppSettings, AuthContext, CurrentAuth, DbSession, require_app_permission
@@ -22,7 +26,7 @@ from app.connections import service as svc
 from app.database.adapters import capabilities_for
 from app.database.core.base import DbType, Limits
 from app.database.core.manager import get_adapter_manager
-from app.errors import Forbidden
+from app.errors import AppError, Forbidden
 from app.models import Connection
 from app.services.runtime import run_blocking
 
@@ -129,7 +133,7 @@ async def test_connection(
     a = await svc.require_access(db, ctx, cid, Perm.CONNECTION_TEST)
     policy = await svc.get_network_policy(db, settings)
     adapter = get_adapter_manager().get(
-        svc.build_spec(a.connection), policy, Limits.from_settings(settings)
+        await svc.spec_for(db, ctx, a.connection), policy, Limits.from_settings(settings)
     )
     result = await run_blocking(adapter.test)
     await audit.record(
@@ -141,6 +145,54 @@ async def test_connection(
         detail={"error_code": result.error_code} if not result.ok else {},
     )
     return ConnectionTestOut(**result.__dict__)
+
+
+@router.get("/{cid}/credentials/me", response_model=CredentialsOut)
+async def my_credentials(cid: uuid.UUID, db: DbSession, ctx: CurrentAuth) -> CredentialsOut:
+    a = await svc.require_access(db, ctx, cid, Perm.CONNECTION_VIEW)
+    cred = await svc.load_user_credential(db, ctx.user.id, cid)
+    return CredentialsOut(
+        required=a.connection.credential_model == "per_user",
+        configured=cred is not None,
+        username=cred.username if cred else None,
+    )
+
+
+@router.put("/{cid}/credentials/me", response_model=CredentialsOut)
+async def put_my_credentials(
+    cid: uuid.UUID, body: CredentialsIn, db: DbSession, settings: AppSettings, ctx: CurrentAuth
+) -> CredentialsOut:
+    a = await svc.require_access(db, ctx, cid, Perm.CONNECTION_VIEW)
+    try:
+        cred = await svc.set_user_credentials(
+            db, settings, ctx, a.connection,
+            username=body.username, password=body.password.get_secret_value(),
+        )  # fmt: skip
+    except AppError as exc:
+        await audit.record(
+            "connection.credentials.set", actor=ctx.actor, connection_id=cid,
+            target={"name": a.connection.name}, result="failure", detail={"error": exc.code},
+        )  # fmt: skip
+        raise
+    await audit.record(
+        "connection.credentials.set",
+        actor=ctx.actor,
+        connection_id=cid,
+        target={"name": a.connection.name, "db_username": cred.username},
+    )
+    return CredentialsOut(required=True, configured=True, username=cred.username)
+
+
+@router.delete("/{cid}/credentials/me", status_code=204)
+async def delete_my_credentials(cid: uuid.UUID, db: DbSession, ctx: CurrentAuth) -> None:
+    a = await svc.require_access(db, ctx, cid, Perm.CONNECTION_VIEW)
+    if await svc.delete_user_credentials(db, ctx.user.id, a.connection):
+        await audit.record(
+            "connection.credentials.delete",
+            actor=ctx.actor,
+            connection_id=cid,
+            target={"name": a.connection.name},
+        )
 
 
 @router.get("/{cid}/grants", response_model=list[GrantOut])
@@ -172,3 +224,51 @@ async def put_grants(
         GrantOut(user_id=u.id, username=u.username, role_id=r.id, role=r.name)
         for u, r in await svc.list_grants(db, a.connection)
     ]
+
+
+def _scope_out(rows: list[tuple[Any, Any, Any]]) -> list[ScopeGrantOut]:
+    return [
+        ScopeGrantOut(
+            user_id=u.id,
+            username=u.username,
+            role_id=r.id,
+            role=r.name,
+            database=g.database,
+            schema_name=g.schema,
+            object=g.object,
+        )
+        for u, r, g in rows
+    ]
+
+
+@router.get("/{cid}/scope-grants", response_model=list[ScopeGrantOut], response_model_by_alias=True)
+async def get_scope_grants(cid: uuid.UUID, db: DbSession, ctx: CurrentAuth) -> list[ScopeGrantOut]:
+    a = await svc.require_access(db, ctx, cid, Perm.CONNECTION_MANAGE_ACCESS)
+    return _scope_out(await svc.list_scope_grants(db, a.connection))
+
+
+@router.put("/{cid}/scope-grants", response_model=list[ScopeGrantOut], response_model_by_alias=True)
+async def put_scope_grants(
+    cid: uuid.UUID, body: ScopeGrantsUpdate, db: DbSession, ctx: CurrentAuth
+) -> list[ScopeGrantOut]:
+    a = await svc.require_access(db, ctx, cid, Perm.CONNECTION_MANAGE_ACCESS)
+    await svc.replace_scope_grants(
+        db, ctx, a,
+        [svc.ScopeGrantSpec(g.user_id, g.role_id, g.database, g.schema_name, g.object)
+         for g in body.grants],
+    )  # fmt: skip
+    await db.flush()
+    await audit.record(
+        "connection.scope_grants.update",
+        actor=ctx.actor,
+        connection_id=cid,
+        target={"name": a.connection.name},
+        detail={
+            "grants": [
+                {"user": str(g.user_id), "role": str(g.role_id), "database": g.database,
+                 "schema": g.schema_name, "object": g.object}
+                for g in body.grants
+            ]
+        },
+    )  # fmt: skip
+    return _scope_out(await svc.list_scope_grants(db, a.connection))

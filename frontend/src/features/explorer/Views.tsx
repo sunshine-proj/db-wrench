@@ -19,6 +19,7 @@ import {
   Th,
 } from "@/components/ui/misc";
 import { DocumentBrowser } from "@/features/data-browser/DocumentBrowser";
+import { ImportButton } from "@/features/data-editor/ImportDialog";
 import { JsonNode } from "@/features/data-browser/JsonTree";
 import { RowBrowser } from "@/features/data-browser/RowBrowser";
 import { canOn } from "@/hooks/useAuth";
@@ -27,6 +28,7 @@ import { t, type MessageKey } from "@/i18n";
 import { connectionsApi, explorerApi, type TablePath } from "@/services/api";
 import type { Connection, FunctionInfo, TestResult } from "@/types/api";
 import { workspacePath } from "@/features/sql-workspace/WorkspaceIndex";
+import { AdminDatabases, CreateDatabaseButton, DropButton, IndexManager } from "./AdminActions";
 import { explorerRoutes } from "./routes";
 import { StructureView } from "./StructureView";
 import { useRecent } from "./useRecent";
@@ -85,6 +87,7 @@ export function ConnectionHome() {
         description={t("explorer.homeHint")}
         actions={
           <>
+            <CreateDatabaseButton connection={c} />
             {canOn(c, "query.execute_read") && (
               <Button asChild variant="outline">
                 <Link to={workspacePath(c)}>{t("workspace.open")}</Link>
@@ -133,6 +136,7 @@ export function ConnectionHome() {
           </dl>
         </CardContent>
       </Card>
+      <AdminDatabases connection={c} />
       <Card>
         <CardHeader>
           <CardTitle>{t("explorer.capabilities")}</CardTitle>
@@ -192,6 +196,7 @@ function FunctionDialog({
 }
 
 export function SchemaOverview() {
+  const c = useOutletContext<Connection>();
   const { cid = "", db = "", schema = "" } = useParams();
   const [tab, setTab] = useState<"tables" | "sequences" | "functions">("tables");
   const [open, setOpen] = useState<FunctionInfo | null>(null);
@@ -211,7 +216,11 @@ export function SchemaOverview() {
   });
   return (
     <div>
-      <PageHeader title={`${db}.${schema}`} description={t("schema.description")} />
+      <PageHeader
+        title={`${db}.${schema}`}
+        description={t("schema.description")}
+        actions={<DropButton connection={c} kind="schema" name={schema} db={db} />}
+      />
       <Tabs
         value={tab}
         onChange={setTab}
@@ -375,6 +384,7 @@ export function TableView() {
         description={s.comment ?? undefined}
         actions={
           <>
+            {s.kind === "table" && <ImportButton connection={c} table={path} />}
             <Badge variant="outline">{s.kind}</Badge>
             {s.estimated_rows !== null && (
               <Badge variant="secondary">
@@ -398,7 +408,18 @@ export function TableView() {
         ) : (
           <Alert variant="warning">{t("table.noDataPermission")}</Alert>
         ))}
-      {tab === "structure" && <StructureView structure={s} connection={c} db={db} />}
+      {tab === "structure" && (
+        <div className="space-y-4">
+          <StructureView structure={s} connection={c} db={db} />
+          {s.kind === "table" && (
+            <IndexManager
+              connection={c}
+              table={path}
+              indexes={s.indexes.map((i) => ({ name: i.name, locked: i.primary }))}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -434,6 +455,10 @@ export function CollectionView() {
         title={`${db}.${coll}`}
         actions={
           <>
+            {d.type === "collection" && (
+              <ImportButton connection={c} mongo={{ db, collection: coll }} />
+            )}
+            <DropButton connection={c} kind="collection" name={coll} db={db} collection={coll} />
             <Badge variant="outline">{d.type}</Badge>
             {d.capped && <Badge variant="secondary">capped</Badge>}
           </>
@@ -489,6 +514,13 @@ export function CollectionView() {
           )}
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">{t("structure.indexes")}</h3>
+            {d.type === "collection" && (
+              <IndexManager
+                connection={c}
+                mongo={{ db, collection: coll }}
+                indexes={d.indexes.map((i) => ({ name: i.name, locked: i.name === "_id_" }))}
+              />
+            )}
             {d.indexes.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("structure.noIndexes")}</p>
             ) : (

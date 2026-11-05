@@ -21,7 +21,9 @@ import { t } from "@/i18n";
 import { connectionsApi } from "@/services/api";
 import type { Connection, TestResult } from "@/types/api";
 import { ConnectionFormDialog } from "./ConnectionForm";
+import { CredentialsDialog } from "./CredentialsDialog";
 import { GrantsDialog } from "./GrantsDialog";
+import { ScopeGrantsDialog } from "./ScopeGrantsDialog";
 
 const ENGINE_LABEL = { postgresql: "PostgreSQL", mysql: "MySQL", mongodb: "MongoDB" } as const;
 
@@ -31,6 +33,8 @@ export function ConnectionsPage() {
   const list = useQuery({ queryKey: ["connections"], queryFn: connectionsApi.list });
   const [editing, setEditing] = useState<Connection | "new" | null>(null);
   const [access, setAccess] = useState<Connection | null>(null);
+  const [scoped, setScoped] = useState<Connection | null>(null);
+  const [creds, setCreds] = useState<Connection | null>(null);
   const [removing, setRemoving] = useState<Connection | null>(null);
   const [results, setResults] = useState<Record<string, TestResult>>({});
 
@@ -139,9 +143,19 @@ export function ConnectionsPage() {
                           <Zap /> {t("connections.test")}
                         </Button>
                       )}
+                      {c.credential_model === "per_user" && (
+                        <Button size="sm" variant="outline" onClick={() => setCreds(c)}>
+                          {t("credentials.open")}
+                        </Button>
+                      )}
                       {canOn(c, "connection.manage_access") && (
                         <Button size="sm" variant="outline" onClick={() => setAccess(c)}>
                           {t("connections.access")}
+                        </Button>
+                      )}
+                      {canOn(c, "connection.manage_access") && (
+                        <Button size="sm" variant="outline" onClick={() => setScoped(c)}>
+                          {t("scope.open")}
                         </Button>
                       )}
                       {canOn(c, "connection.edit") && (
@@ -184,6 +198,8 @@ export function ConnectionsPage() {
       {access && (
         <GrantsDialog connection={access} open onOpenChange={(o) => !o && setAccess(null)} />
       )}
+      {scoped && <ScopeGrantsDialog connection={scoped} onClose={() => setScoped(null)} />}
+      {creds && <CredentialsDialog connection={creds} onClose={() => setCreds(null)} />}
       {removing && (
         <ConfirmDialog
           open

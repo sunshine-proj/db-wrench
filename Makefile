@@ -9,7 +9,7 @@ help:
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*##/\t/' | column -t -s "$$(printf '\t')"
 
 setup: ## install backend and frontend dependencies
-	cd backend && $(UV) sync
+	cd backend && $(UV) sync --extra otel
 	cd frontend && $(PNPM) install --frozen-lockfile
 
 lint: ## ruff, mypy, eslint, prettier --check, tsc

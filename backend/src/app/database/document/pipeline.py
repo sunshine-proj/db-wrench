@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import Any
 
 from app.database.document.filters import (
@@ -159,3 +160,91 @@ def validate_pipeline(
     if not ("$limit" in last and last["$limit"] <= max_limit):
         stages.append({"$limit": max_limit + 1})
     return stages, targets
+
+
+# ---- write stages ($out / $merge), Phase 5 -----------------------------------------------
+
+WRITE_STAGES = {"$out", "$merge"}
+MERGE_WHEN_MATCHED = {"replace", "keepExisting", "merge", "fail"}
+MERGE_WHEN_NOT_MATCHED = {"insert", "discard", "fail"}
+
+
+@dataclass(frozen=True)
+class WriteTarget:
+    stage: str  # "$out" | "$merge"
+    collection: str
+    detail: dict[str, Any]
+
+
+def _same_db_collection(spec: Any, what: str, database: str) -> str:
+    """``"coll"`` or ``{db, coll}``; the target must live in the queried database."""
+    if isinstance(spec, dict):
+        if set(spec) - {"db", "coll"} or spec.get("db") != database:
+            raise _fail(f"{what} may only write to the database being queried.")
+        spec = spec.get("coll")
+    name = _collection_name(spec, what)
+    if name.startswith("system.") or "$" in name:
+        raise _fail(f"{what} names an invalid collection.")
+    return name
+
+
+def _write_stage(stage: Any, database: str) -> WriteTarget:
+    name, body = next(iter(stage.items()))
+    if name == "$out":
+        return WriteTarget("$out", _same_db_collection(body, "$out", database), {"mode": "replace"})
+    if not isinstance(body, dict) or not set(body) <= {
+        "into",
+        "on",
+        "whenMatched",
+        "whenNotMatched",
+    }:
+        raise _fail("$merge accepts only into, on, whenMatched and whenNotMatched.")
+    coll = _same_db_collection(body.get("into"), "$merge.into", database)
+    when_matched = body.get("whenMatched", "merge")
+    when_not = body.get("whenNotMatched", "insert")
+    if (
+        not isinstance(when_matched, str) or when_matched not in MERGE_WHEN_MATCHED
+    ):  # pipeline-valued forms are refused on purpose
+        raise _fail(f"$merge.whenMatched must be one of {sorted(MERGE_WHEN_MATCHED)}.")
+    if not isinstance(when_not, str) or when_not not in MERGE_WHEN_NOT_MATCHED:
+        raise _fail(f"$merge.whenNotMatched must be one of {sorted(MERGE_WHEN_NOT_MATCHED)}.")
+    on = body.get("on")
+    if on is not None:
+        fields = [on] if isinstance(on, str) else on
+        if not isinstance(fields, list) or not fields or len(fields) > 8:
+            raise _fail("$merge.on needs one or more field names.")
+        for f in fields:
+            if not isinstance(f, str):
+                raise _fail("$merge.on needs field names.")
+            check_field_name(f)
+    return WriteTarget(
+        "$merge", coll, {"whenMatched": when_matched, "whenNotMatched": when_not, "on": on}
+    )
+
+
+def is_write_pipeline(data: Any) -> bool:
+    """True when the pipeline's last stage is ``$out`` or ``$merge`` (checked before the
+    ordinary validation, which would reject it)."""
+    last = data[-1] if isinstance(data, list) and data else None
+    return isinstance(last, dict) and len(last) == 1 and next(iter(last)) in WRITE_STAGES
+
+
+def validate_write_pipeline(
+    raw: str | list[Any], database: str
+) -> tuple[list[dict[str, Any]], set[str], WriteTarget]:
+    """Validate a pipeline that ends in a single ``$out``/``$merge`` into a collection of the
+    same database. Returns (stages, collections read, write target).
+
+    The write stage is validated separately and must be last; ``$out``/``$merge`` anywhere else
+    is still rejected by the deep scan. No result limit is appended after a write stage (it
+    would be invalid there); a write pipeline returns no documents."""
+    data = parse_json(raw, "Pipeline") if isinstance(raw, str) else raw
+    if not is_write_pipeline(data):
+        raise _fail("The pipeline does not end in $out or $merge.")
+    write = _write_stage(data[-1], database)
+    head = data[:-1]
+    targets: set[str] = set()
+    if head:
+        _pipeline(head, targets, 0, _Budget())
+    stages: list[dict[str, Any]] = to_bson(json.loads(json.dumps(data)))
+    return stages, targets, write

@@ -15,6 +15,7 @@ from fastapi import APIRouter, Query
 from app.auth.deps import AppSettings, CurrentAuth, DbSession
 from app.auth.permissions import Perm
 from app.connections import service as conns
+from app.connections.scope import ObjectScope
 from app.database.document.filters import (
     filter_fields,
     mask_document,
@@ -51,8 +52,9 @@ JsonParam = Annotated[str | None, Query(max_length=65536)]
 async def list_databases(
     cid: uuid.UUID, db: DbSession, settings: AppSettings, ctx: CurrentAuth
 ) -> Any:
-    adapter = await ex.relational(db, ctx, settings, cid, Perm.METADATA_VIEW)
-    return await run_blocking(adapter.list_databases)
+    access, adapter = await ex.relational_access(db, ctx, settings, cid, Perm.CONNECTION_VIEW)
+    items = await run_blocking(adapter.list_databases)
+    return ex.apply_listing(access, items, lambda d: d.name, "databases")
 
 
 async def _rows(
@@ -61,7 +63,9 @@ async def _rows(
     limit: int, cursor: str | None, sort: str | None, filters: str | None,
     columns: str | None, search: str | None, search_columns: str | None,
 ) -> RowPage:  # fmt: skip
-    access, adapter = await conns.open_adapter(db, ctx, settings, cid, Perm.DATA_READ, "relational")
+    access, adapter = await conns.open_adapter(
+        db, ctx, settings, cid, Perm.DATA_READ, "relational", ObjectScope(database, schema, table)
+    )
     adapter = conns.as_relational(adapter)
     q = ex.parse_row_query(
         limit=limit or settings.default_page_size, cursor=cursor, sort=sort, filters=filters,
@@ -94,8 +98,11 @@ async def _rows(
 async def list_schemas(
     cid: uuid.UUID, database: str, db: DbSession, settings: AppSettings, ctx: CurrentAuth
 ) -> Any:
-    adapter = await ex.relational(db, ctx, settings, cid, Perm.METADATA_VIEW)
-    return await run_blocking(adapter.list_schemas, database)
+    access, adapter = await ex.relational_access(
+        db, ctx, settings, cid, Perm.METADATA_VIEW, ObjectScope(database, inside=True)
+    )
+    items = await run_blocking(adapter.list_schemas, database)
+    return ex.apply_listing(access, items, lambda x: x.name, "schemas", database=database)
 
 
 @router.get("/databases/{database}/schemas/{schema}/tables", response_model=list[TableInfo])
@@ -107,8 +114,13 @@ async def list_tables_in_schema(
     settings: AppSettings,
     ctx: CurrentAuth,
 ) -> Any:
-    adapter = await ex.relational(db, ctx, settings, cid, Perm.METADATA_VIEW)
-    return await run_blocking(adapter.list_tables, database, schema)
+    access, adapter = await ex.relational_access(
+        db, ctx, settings, cid, Perm.METADATA_VIEW, ObjectScope(database, schema, inside=True)
+    )
+    items = await run_blocking(adapter.list_tables, database, schema)
+    return ex.apply_listing(
+        access, items, lambda x: x.name, "tables", database=database, schema=schema
+    )
 
 
 @router.get(
@@ -119,7 +131,9 @@ async def table_structure_in_schema(
     cid: uuid.UUID, database: str, schema: str, table: str,
     db: DbSession, settings: AppSettings, ctx: CurrentAuth,
 ) -> Any:  # fmt: skip
-    adapter = await ex.relational(db, ctx, settings, cid, Perm.METADATA_VIEW)
+    adapter = await ex.relational(
+        db, ctx, settings, cid, Perm.METADATA_VIEW, ObjectScope(database, schema, table)
+    )
     return await run_blocking(adapter.get_structure, database, schema, table)
 
 
@@ -146,7 +160,9 @@ async def list_sequences(
     settings: AppSettings,
     ctx: CurrentAuth,
 ) -> Any:
-    adapter = await ex.relational(db, ctx, settings, cid, Perm.METADATA_VIEW)
+    adapter = await ex.relational(
+        db, ctx, settings, cid, Perm.METADATA_VIEW, ObjectScope(database, schema)
+    )
     return await run_blocking(adapter.list_sequences, database, schema)
 
 
@@ -159,7 +175,9 @@ async def list_functions(
     settings: AppSettings,
     ctx: CurrentAuth,
 ) -> Any:
-    adapter = await ex.relational(db, ctx, settings, cid, Perm.METADATA_VIEW)
+    adapter = await ex.relational(
+        db, ctx, settings, cid, Perm.METADATA_VIEW, ObjectScope(database, schema)
+    )
     return await run_blocking(adapter.list_functions, database, schema)
 
 
@@ -170,7 +188,9 @@ async def get_function(
     cid: uuid.UUID, database: str, schema: str, function_id: str,
     db: DbSession, settings: AppSettings, ctx: CurrentAuth,
 ) -> Any:  # fmt: skip
-    adapter = await ex.relational(db, ctx, settings, cid, Perm.METADATA_VIEW)
+    adapter = await ex.relational(
+        db, ctx, settings, cid, Perm.METADATA_VIEW, ObjectScope(database, schema)
+    )
     return await run_blocking(adapter.get_function, database, schema, function_id)
 
 
@@ -181,8 +201,11 @@ async def get_function(
 async def list_tables(
     cid: uuid.UUID, database: str, db: DbSession, settings: AppSettings, ctx: CurrentAuth
 ) -> Any:
-    adapter = await ex.relational(db, ctx, settings, cid, Perm.METADATA_VIEW)
-    return await run_blocking(adapter.list_tables, database, None)
+    access, adapter = await ex.relational_access(
+        db, ctx, settings, cid, Perm.METADATA_VIEW, ObjectScope(database, inside=True)
+    )
+    items = await run_blocking(adapter.list_tables, database, None)
+    return ex.apply_listing(access, items, lambda x: x.name, "tables", database=database)
 
 
 @router.get("/databases/{database}/tables/{table}/structure", response_model=TableStructure)
@@ -194,7 +217,9 @@ async def table_structure(
     settings: AppSettings,
     ctx: CurrentAuth,
 ) -> Any:
-    adapter = await ex.relational(db, ctx, settings, cid, Perm.METADATA_VIEW)
+    adapter = await ex.relational(
+        db, ctx, settings, cid, Perm.METADATA_VIEW, ObjectScope(database, None, table)
+    )
     return await run_blocking(adapter.get_structure, database, None, table)
 
 
@@ -219,16 +244,20 @@ async def table_rows(
 async def mongo_databases(
     cid: uuid.UUID, db: DbSession, settings: AppSettings, ctx: CurrentAuth
 ) -> Any:
-    adapter = await ex.document(db, ctx, settings, cid, Perm.METADATA_VIEW)
-    return await run_blocking(adapter.list_databases)
+    access, adapter = await ex.document_access(db, ctx, settings, cid, Perm.CONNECTION_VIEW)
+    items = await run_blocking(adapter.list_databases)
+    return ex.apply_listing(access, items, lambda d: d.name, "databases")
 
 
 @router.get("/mongo/databases/{database}/collections")
 async def mongo_collections(
     cid: uuid.UUID, database: str, db: DbSession, settings: AppSettings, ctx: CurrentAuth
 ) -> Any:
-    adapter = await ex.document(db, ctx, settings, cid, Perm.METADATA_VIEW)
-    return await run_blocking(adapter.list_collections, database)
+    access, adapter = await ex.document_access(
+        db, ctx, settings, cid, Perm.METADATA_VIEW, ObjectScope(database, inside=True)
+    )
+    items = await run_blocking(adapter.list_collections, database)
+    return ex.apply_listing(access, items, lambda c: c.name, "tables", database=database)
 
 
 @router.get("/mongo/databases/{database}/collections/{collection}")
@@ -236,7 +265,9 @@ async def mongo_collection(
     cid: uuid.UUID, database: str, collection: str,
     db: DbSession, settings: AppSettings, ctx: CurrentAuth,
 ) -> Any:  # fmt: skip
-    adapter = await ex.document(db, ctx, settings, cid, Perm.METADATA_VIEW)
+    adapter = await ex.document(
+        db, ctx, settings, cid, Perm.METADATA_VIEW, ObjectScope(database, None, collection)
+    )
     return await run_blocking(adapter.get_collection, database, collection)
 
 
@@ -247,7 +278,9 @@ async def mongo_documents(
     limit: Limit = 50, cursor: Cursor = None,
     filter: JsonParam = None, sort: JsonParam = None, projection: JsonParam = None,
 ) -> Any:  # fmt: skip
-    access, adapter = await conns.open_adapter(db, ctx, settings, cid, Perm.DATA_READ, "document")
+    access, adapter = await conns.open_adapter(
+        db, ctx, settings, cid, Perm.DATA_READ, "document", ObjectScope(database, None, collection)
+    )
     adapter = conns.as_document(adapter)
     q = DocQuery(
         filter=validate_filter(filter),

@@ -17,6 +17,11 @@ x-backend-env: &backend-env
   DBW_TRUSTED_PROXY_HOPS: "1"
   DBW_NETWORK_ALLOW_CIDRS: ${DBW_NETWORK_ALLOW_CIDRS:-["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16","fc00::/7"]}
   DBW_METRICS_ENABLED: ${DBW_METRICS_ENABLED:-false}
+  DBW_PUBLIC_URL: ${DBW_PUBLIC_URL:-}
+  DBW_OTEL_ENABLED: ${DBW_OTEL_ENABLED:-false}
+  DBW_OTEL_ENDPOINT: ${DBW_OTEL_ENDPOINT:-}
+  DBW_OTEL_SERVICE_NAME: ${DBW_OTEL_SERVICE_NAME:-db-wrench}
+  DBW_OTEL_SAMPLE_RATIO: ${DBW_OTEL_SAMPLE_RATIO:-1.0}
 
 services:
   db:
@@ -38,7 +43,10 @@ services:
     networks: [app_net]
 
   migrate:
-    build: ./backend
+    build: &backend-build
+      context: ./backend
+      args:
+        DBW_EXTRAS: ${DBW_EXTRAS:-}
     image: dbwrench/backend:${DBW_VERSION:-dev}
     command: ["alembic", "upgrade", "head"]
     environment: *backend-env
@@ -52,7 +60,7 @@ services:
     networks: [app_net]
 
   backend:
-    build: ./backend
+    build: *backend-build
     image: dbwrench/backend:${DBW_VERSION:-dev}
     <<: *hardening
     environment: *backend-env

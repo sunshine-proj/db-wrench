@@ -12,12 +12,12 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit.service import Actor
-from app.auth import service
+from app.auth import service, tokens
 from app.auth.permissions import APP_SCOPE, SUPER_ADMIN, Perm
 from app.config import Settings, get_settings
 from app.db import get_session
 from app.errors import Forbidden, MfaRequired, Unauthorized
-from app.models import SessionRow, User
+from app.models import ApiToken, SessionRow, User
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
@@ -55,6 +55,7 @@ class AuthContext:
     session: SessionRow
     ip: str
     settings: Settings
+    token: ApiToken | None = None  # set when authenticated by an API token
 
     @property
     def is_super_admin(self) -> bool:
@@ -62,6 +63,8 @@ class AuthContext:
 
     @property
     def app_permissions(self) -> frozenset[str]:
+        if self.token is not None:  # tokens never carry application permissions
+            return frozenset()
         if self.is_super_admin:
             return frozenset(p.value for p in Perm)
         return frozenset(set(self.user.role.permissions) & {p.value for p in APP_SCOPE})
@@ -75,11 +78,16 @@ class AuthContext:
 
     @property
     def actor(self) -> Actor:
-        return Actor(self.user.id, self.user.username, self.ip)
+        return Actor(
+            self.user.id, self.user.username, self.ip, self.token.id if self.token else None
+        )
 
 
 async def session_ctx(request: Request, db: DbSession, settings: AppSettings) -> AuthContext:
     """Authenticated session in *any* MFA state. CSRF-checked for unsafe methods."""
+    bearer = _bearer(request)
+    if bearer is not None:
+        return await _token_ctx(request, db, settings, bearer)
     token = request.cookies.get(settings.cookie_name)
     if not token:
         raise Unauthorized()
@@ -91,6 +99,34 @@ async def session_ctx(request: Request, db: DbSession, settings: AppSettings) ->
         if not hmac.compare_digest(sent, row.csrf_token):
             raise Forbidden("CSRF token missing or invalid.", extra={"code_hint": "csrf"})
     return AuthContext(row.user, row, client_ip(request, settings), settings)
+
+
+def _bearer(request: Request) -> str | None:
+    header = request.headers.get("authorization", "")
+    scheme, _, value = header.partition(" ")
+    return value.strip() if scheme.lower() == "bearer" and value.strip() else None
+
+
+async def _token_ctx(
+    request: Request, db: AsyncSession, settings: Settings, secret: str
+) -> AuthContext:
+    """Authenticate an API token. No cookie, no CSRF (a bearer header is not sent ambiently),
+    and only the data-plane paths: everything else is session-only."""
+    row = await tokens.authenticate(db, secret) if tokens.looks_like_token(secret) else None
+    if row is None:
+        raise Unauthorized("Invalid, expired or revoked API token.")
+    if not request.url.path.startswith(tokens.BEARER_PATH_PREFIXES):
+        raise Forbidden("API tokens cannot be used for this endpoint.")
+    # A transient session object keeps AuthContext uniform; it is never persisted.
+    transient = SessionRow(
+        id=row.id,
+        user_id=row.user_id,
+        csrf_token="",
+        mfa_state="ok",
+        token_hash="-",  # noqa: S106
+    )
+    transient.user = row.user
+    return AuthContext(row.user, transient, client_ip(request, settings), settings, row)
 
 
 async def auth_pw_ok(ctx: Annotated[AuthContext, Depends(session_ctx)]) -> AuthContext:

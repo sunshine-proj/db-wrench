@@ -362,6 +362,16 @@ Editing and export live under the same table path: `POST .../rows`,
 `POST .../queries/{operation_id}/cancel`, `POST .../queries/export`, `GET|DELETE .../queries/history`,
 `.../queries/saved`, and `POST .../mongo/queries/execute`.
 
+Administration (databases, schemas, indexes) and import live under the same paths:
+`POST|DELETE .../databases[/{db}]`, `POST|DELETE .../databases/{db}/schemas[/{schema}]`,
+`POST .../tables/{table}/indexes`, `DELETE .../indexes/{index}`, `POST .../tables/{table}/import/{preview|commit}`;
+MongoDB: `POST|DELETE .../mongo/databases[/{db}]`, `.../collections[/{coll}]`, `.../indexes[/{index}]`,
+`.../collections/{coll}/import/{preview|commit}`. Operations under an approval policy answer
+`428 approval_required` and are repeated with an `Approval-Id` header. Application-level resources:
+`/api/v1/approvals`, `/api/v1/governance/policies`, `/api/v1/tokens`, `/api/v1/auth/oidc/*`,
+`/api/v1/settings/{oidc,audit-sink}`, `/api/v1/audit/export`,
+`/api/v1/connections/{cid}/{scope-grants,credentials/me}`.
+
 PostgreSQL additionally exposes `.../schemas/{schema}/sequences` and
 `.../functions[/{function_id}]`. The generated OpenAPI document
 (`docs/openapi.json`, regenerate with `make openapi`) is the authoritative

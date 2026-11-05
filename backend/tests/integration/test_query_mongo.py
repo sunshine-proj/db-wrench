@@ -78,11 +78,24 @@ async def test_pipeline_output_is_always_bounded(admin, mq):
 
 
 @pytest.mark.security
+@pytest.mark.parametrize("stage", [{"$out": "stolen"}, {"$merge": {"into": "x"}}])
+async def test_write_stages_are_refused_on_read_only_connections(admin, mq, stage):
+    """Phase 5 allows $out/$merge only with query.execute_write on a writable connection and
+    an approval; a read-only connection refuses them at the permission layer."""
+    r = await execute(admin, mq, kind="aggregate", pipeline=[stage])
+    assert r.status_code == 403, r.text
+    denied = (
+        await admin.get(
+            "audit/events",
+            params={"connection_id": mq, "action": "query.execute", "result": "denied"},
+        )
+    ).json()["events"]
+    assert denied and denied[0]["detail"]["kind"] == "aggregate"
+
+
 @pytest.mark.parametrize(
     "pipeline",
     [
-        [{"$out": "stolen"}],
-        [{"$merge": {"into": "x"}}],
         [{"$addFields": {"x": {"$function": {"body": "function(){}", "args": [], "lang": "js"}}}}],
         [{"$match": {"$where": "sleep(5000)"}}],
         [{"$lookup": {"from": "events", "pipeline": [{"$out": "x"}], "as": "o"}}],

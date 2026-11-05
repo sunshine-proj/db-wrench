@@ -92,6 +92,7 @@ class ConnectionSpec:
     options: dict[str, Any] = field(default_factory=dict)
     allow_writes: bool = False  # False for read-only connections: writers refuse to open
     version_key: str = ""  # changes whenever the stored connection changes
+    parent_id: uuid.UUID | None = None  # the connection a per-user spec derives from
 
 
 @dataclass

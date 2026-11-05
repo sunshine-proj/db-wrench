@@ -95,7 +95,11 @@ Run more than one backend replica behind the proxy for availability: the backend
   scrape it from the internal network.
 - Logs are structured JSON on stdout with a `request_id` that also appears in API errors and audit
   records. Credentials and row contents are never logged.
-- Not yet implemented: OpenTelemetry tracing and SIEM/syslog forwarding of audit events (Phase 5).
+- **Tracing** (opt-in, ADR-0015): build the image with `DBW_EXTRAS="--extra otel"`, then set
+  `DBW_OTEL_ENABLED=true` and `DBW_OTEL_ENDPOINT` (OTLP/HTTP, e.g. `https://collector:4318`);
+  `DBW_OTEL_SAMPLE_RATIO` and `DBW_OTEL_SERVICE_NAME` tune it. Startup fails if the extra or the
+  endpoint is missing. Spans never contain bodies, query strings, cookies, statements or row data.
+- **Audit forwarding** (syslog/SIEM) is configured under *Integrations*; see below.
 
 ## Data editing, exports and queries
 
@@ -113,6 +117,65 @@ Run more than one backend replica behind the proxy for availability: the backend
   eviction, so many connections cannot exhaust database connection slots.
 - Prefer giving DB Wrench's *managed-database accounts* only the privileges users should have: for
   read-only connections use a read-only database role, which is the strongest guarantee (ADR-0008).
+
+## Single sign-on (OIDC)
+
+1. Set `DBW_PUBLIC_URL` to the externally visible base URL (for example
+   `https://wrench.example.com`) and restart. The redirect URI to register at the identity
+   provider is `<DBW_PUBLIC_URL>/api/v1/auth/oidc/callback` (shown under *Integrations*).
+2. The identity provider must be reachable under the outbound network policy: allowlist its host
+   or CIDR under *Network & keys* (ADR-0007). Discovery, JWKS and token endpoints must be HTTPS.
+3. Under *Integrations* enter issuer, client id and secret, the groups claim, and the
+   `group=Role` mappings (first match wins; Super Admin cannot be mapped). Without a matching group
+   and a default role, login is refused.
+4. Users are created on first login and keyed by the provider's immutable `sub`; they are never
+   merged with local accounts by e-mail. The role is recomputed at every login. Removing a user from
+   a group takes effect at their next login; deactivate the user to cut access immediately.
+   Keep at least one local Super Admin as break-glass access.
+
+## API tokens
+
+Users with `app.manage_tokens` create scoped, expiring tokens under *API tokens*. Send them as
+`Authorization: Bearer dbw_...`. A token can only act on `/api/v1/connections/**` and
+`/api/v1/approvals/**`, never exceeds its owner's rights, and stops working when the owner is
+deactivated. The secret is shown once; only its hash is stored. Audit records of token requests carry
+the token id.
+
+## Governance and approvals
+
+*Governance* (administrators) lists which operations need a second person's approval per
+environment or connection. A gated request answers `428 approval_required` with an approval id;
+a different user with `governance.approve` on that connection decides under *Approvals*; the
+requester then repeats the identical request with an `Approval-Id` header (the UI offers it under
+"Use approval"). Approvals expire after 24 hours and work once. MongoDB `$out`/`$merge` always
+need an approval.
+
+## Audit export and SIEM forwarding
+
+- *Audit log -> Export* downloads CSV/JSON/NDJSON (`audit.export`). Each record carries `prev_hash`
+  and `hash`. To verify an export offline, start with `prev = "0" * 64` and for each record check
+  `record.prev_hash == prev` and `record.hash == sha256(prev + canonical_json(body))`, where
+  `body` is the record's `ts, actor_user_id, actor_username, ip, request_id, action, connection_id,
+  target, result, detail` and `canonical_json` sorts keys and uses separators `(",", ":")`.
+- *Integrations -> Audit forwarding* sends events as RFC 5424 (or JSON) over UDP, TCP or TLS. Only
+  one replica forwards at a time; the position is kept in the database, so an outage delays delivery
+  instead of losing events (at-least-once: de-duplicate on the `id`). The SIEM host must be allowed by
+  the network policy. Metrics: `dbw_audit_forwarded_total`, `dbw_audit_forward_errors_total`.
+
+## Importing data
+
+*Import* on a table (CSV) or collection (JSON/NDJSON) validates first: a relational preview runs the
+import in a rolled-back transaction (identity/sequence values may advance), so every error is
+reported with its row number; commit is all-or-nothing. MongoDB imports insert only and are not
+atomic. Limits: `DBW_IMPORT_MAX_ROWS`, `DBW_IMPORT_MAX_DOCUMENTS`, 8 MB per request.
+
+## Personal database credentials and scoped access
+
+- Connections set to *Each user's own login* store one encrypted credential per user; users add
+  theirs under the connection's *Your credentials*. The shared service account is not used.
+- *Scoped access* (connections page) grants a role on one database, schema or table/collection.
+  It adds to connection-level access and covers object-level actions only; free-form SQL and
+  aggregation, creating/dropping databases and managing access remain connection-level (ADR-0013).
 
 ## Command line
 

@@ -22,6 +22,20 @@ const NetworkPolicyPage = lazy(() =>
     default: m.NetworkPolicyPage,
   })),
 );
+const ApprovalsPage = lazy(() =>
+  import("@/features/governance/ApprovalsPage").then((m) => ({ default: m.ApprovalsPage })),
+);
+const GovernancePage = lazy(() =>
+  import("@/features/governance/GovernancePage").then((m) => ({ default: m.GovernancePage })),
+);
+const IntegrationsPage = lazy(() =>
+  import("@/features/administration/IntegrationsPage").then((m) => ({
+    default: m.IntegrationsPage,
+  })),
+);
+const TokensPage = lazy(() =>
+  import("@/features/settings/TokensPage").then((m) => ({ default: m.TokensPage })),
+);
 const AuditPage = lazy(() =>
   import("@/features/audit/AuditPage").then((m) => ({ default: m.AuditPage })),
 );
@@ -124,6 +138,31 @@ export function App() {
             element={
               <RequirePermission permission="app.manage_settings">
                 <NetworkPolicyPage />
+              </RequirePermission>
+            }
+          />
+          <Route path="approvals" element={<ApprovalsPage />} />
+          <Route
+            path="admin/governance"
+            element={
+              <RequirePermission permission="app.manage_settings">
+                <GovernancePage />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="admin/integrations"
+            element={
+              <RequirePermission permission="app.manage_settings">
+                <IntegrationsPage />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="tokens"
+            element={
+              <RequirePermission permission="app.manage_tokens">
+                <TokensPage />
               </RequirePermission>
             }
           />

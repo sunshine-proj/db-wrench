@@ -76,3 +76,10 @@ def require_confirmation(access: Access, confirm: str | None, name: str) -> None
         raise ConfirmationRequired(
             f"This is a production connection. Type the object name {name!r} to confirm."
         )
+
+
+def require_typed_name(confirm: str | None, name: str) -> None:
+    """Dropping a database, schema or collection always needs the object's name typed back,
+    in every environment (production additionally enforces it for lesser operations)."""
+    if confirm != name:
+        raise ConfirmationRequired(f"Type the object name {name!r} to confirm this deletion.")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
@@ -26,8 +27,13 @@ def _executor() -> ThreadPoolExecutor:
 
 async def run_blocking[T](fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
     """Run a blocking managed-database call on the bounded, dedicated worker pool."""
+    from app.tracing import run_in_context
+
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(_executor(), lambda: fn(*args, **kwargs))
+    ctx = contextvars.copy_context()  # request id and trace context follow the call
+    return await loop.run_in_executor(
+        _executor(), lambda: ctx.run(run_in_context, fn, *args, **kwargs)
+    )
 
 
 def reset_runtime() -> None:

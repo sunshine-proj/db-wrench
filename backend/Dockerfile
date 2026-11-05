@@ -2,13 +2,15 @@
 FROM python:3.12.11-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
+# Optional extras, e.g. DBW_EXTRAS="--extra otel" to ship OpenTelemetry tracing support.
+ARG DBW_EXTRAS=""
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project --no-editable
+    uv sync --frozen --no-dev --no-install-project --no-editable ${DBW_EXTRAS}
 COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable
+    uv sync --frozen --no-dev --no-editable ${DBW_EXTRAS}
 
 FROM python:3.12.11-slim
 # Non-root user; no shell login, no home directory contents.

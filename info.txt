@@ -72,7 +72,12 @@ The next phase is Phase 5; start the stack with ./scripts/init-env.sh then docke
 =========================================================
 
 
+Phase 5 is complete, and docs/STATUS.md now has Phase 6 (database users, roles and privileges) as the active phase.
 
+
+
+
+=========================================================
 
 
 
