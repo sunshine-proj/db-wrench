@@ -68,6 +68,8 @@ ignore = ["S101", "B008"]
 [tool.ruff.lint.per-file-ignores]
 # Tests use literal SQL, fixture data and deny-list addresses on purpose.
 "tests/**" = ["S104", "S105", "S106", "S608", "E501"]
+# pytest fixtures imported from another module are re-declared as test arguments.
+"tests/integration/test_principals.py" = ["F811", "F401"]
 "migrations/**" = ["E501"]
 # Adapter metadata queries are static catalog SQL; the only dynamic parts are fixed fragments
 # and bound parameters. Client-supplied identifiers never reach these modules as text.

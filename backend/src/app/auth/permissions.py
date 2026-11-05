@@ -39,6 +39,7 @@ class Perm(StrEnum):
     ADMIN_MANAGE_DATABASES = "admin.manage_databases"
     ADMIN_MANAGE_SCHEMAS = "admin.manage_schemas"
     ADMIN_MANAGE_INDEXES = "admin.manage_indexes"
+    ADMIN_VIEW_USERS = "admin.view_users"
     ADMIN_MANAGE_USERS = "admin.manage_users"
     ADMIN_MANAGE_PRIVILEGES = "admin.manage_privileges"
     GOVERNANCE_APPROVE = "governance.approve"

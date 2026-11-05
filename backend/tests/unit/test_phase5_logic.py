@@ -295,3 +295,53 @@ def test_sink_validation(bad):
     validate(ok)
     with pytest.raises(ValidationFailed):
         validate({**ok, **bad})
+
+
+# ------------------------------------------------------------------------------ phase 6
+
+
+def test_privilege_allowlists_never_expand_to_engine_level_all():
+    from app.database.adapters.mysql import MySQLAdapter
+    from app.database.adapters.postgres import PostgresAdapter
+    from app.database.relational.principals import normalise_privileges
+
+    for allowed in (
+        MySQLAdapter._DB_PRIVS,
+        MySQLAdapter._TABLE_PRIVS,
+        PostgresAdapter._TABLE_PRIVS,
+    ):
+        assert normalise_privileges(["all"], allowed) == sorted(allowed)
+        assert normalise_privileges(["select", "SELECT", " select "], allowed) == ["SELECT"]
+        for bad in ("GRANT OPTION", "SUPER", "FILE", "PROCESS", "SHUTDOWN", "RELOAD", "CREATE USER",
+                    "SELECT, DROP", "SELECT;", "", "superuser", "ALL ON *.*"):  # fmt: skip
+            with pytest.raises(ValidationFailed):
+                normalise_privileges([bad], allowed)
+    with pytest.raises(ValidationFailed):
+        normalise_privileges([], MySQLAdapter._DB_PRIVS)
+    assert "EXECUTE" not in MySQLAdapter._TABLE_PRIVS  # routine rights are database-level only
+
+
+def test_password_policy_and_protected_accounts():
+    from app.database.relational.principals import PrincipalInfo, check_password, refuse_protected
+    from app.errors import Forbidden, NotFound
+
+    assert check_password("x" * 12) == "x" * 12
+    for bad in ("short", "x" * 257, "a\x00" + "b" * 20, 5):
+        with pytest.raises(ValidationFailed):
+            check_password(bad)  # type: ignore[arg-type]
+    with pytest.raises(NotFound):
+        refuse_protected(None, "ghost")
+    with pytest.raises(Forbidden):
+        refuse_protected(PrincipalInfo("root", "user", protected=True), "root")
+    assert refuse_protected(PrincipalInfo("app", "user"), "app").name == "app"
+
+
+def test_new_permission_is_read_only_and_connection_scoped():
+    from app.auth.permissions import APP_SCOPE, WRITE_PERMS
+
+    assert Perm.ADMIN_VIEW_USERS not in WRITE_PERMS and Perm.ADMIN_VIEW_USERS not in APP_SCOPE
+    assert Perm.ADMIN_MANAGE_USERS in WRITE_PERMS and Perm.ADMIN_MANAGE_PRIVILEGES in WRITE_PERMS
+    assert Perm.ADMIN_VIEW_USERS.value not in SCOPABLE  # principals are connection-level only
+    for op in ("admin.create_principal", "admin.alter_principal", "admin.drop_principal",
+               "admin.grant_privileges", "admin.revoke_privileges"):  # fmt: skip
+        assert op in POLICY_OPERATIONS

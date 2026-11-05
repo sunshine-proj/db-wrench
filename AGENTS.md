@@ -372,6 +372,12 @@ MongoDB: `POST|DELETE .../mongo/databases[/{db}]`, `.../collections[/{coll}]`, `
 `/api/v1/settings/{oidc,audit-sink}`, `/api/v1/audit/export`,
 `/api/v1/connections/{cid}/{scope-grants,credentials/me}`.
 
+Database users, roles and privileges (Phase 6): `GET|POST .../principals`,
+`PATCH|DELETE .../principals/{name}?host=` (MySQL account host), `GET|POST|DELETE
+.../principals/{name}/grants`, `POST|DELETE .../principals/{name}/memberships` (PostgreSQL);
+MongoDB: `.../mongo/databases/{db}/users[/{name}[/password|/roles]]` and
+`.../mongo/databases/{db}/roles[/{role}[/privileges]]`.
+
 PostgreSQL additionally exposes `.../schemas/{schema}/sequences` and
 `.../functions[/{function_id}]`. The generated OpenAPI document
 (`docs/openapi.json`, regenerate with `make openapi`) is the authoritative

@@ -30,3 +30,4 @@ using the sections Status, Context, Decision, and Consequences.
   - ADR-0013: API tokens and grants below connection level
   - ADR-0014: Import with preview, and per-user managed-database credentials
   - ADR-0015: Audit export, SIEM forwarding and OpenTelemetry tracing
+  - ADR-0016: Database users, roles and privileges

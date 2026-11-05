@@ -343,7 +343,7 @@ tracked in `docs/STATUS.md`.
 | 3     | Data editor and export                    | Done        | Insert/update/delete, concurrency control, bulk ops, export, masking    |
 | 4     | Query workspaces                          | Done        | SQL and MongoDB workspaces, history, saved queries, cancellation        |
 | 5     | Administration, import, governance        | Done        | DB/schema/index admin, import, OIDC, API tokens, approvals, SIEM export |
-| 6     | Extended administration                   | Planned     | Database users, roles, and privileges                                  |
+| 6     | Extended administration                   | Done        | Database users, roles, and privileges                                  |
 | 7     | MCP and AI integration                    | Planned     | MCP server, read-only tools, AI-assisted queries and analysis           |
 
 Detailed status, deferred items and known limits: [docs/STATUS.md](docs/STATUS.md).

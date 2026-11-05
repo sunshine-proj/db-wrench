@@ -177,6 +177,21 @@ atomic. Limits: `DBW_IMPORT_MAX_ROWS`, `DBW_IMPORT_MAX_DOCUMENTS`, 8 MB per requ
   It adds to connection-level access and covers object-level actions only; free-form SQL and
   aggregation, creating/dropping databases and managing access remain connection-level (ADR-0013).
 
+## Database users, roles and privileges
+
+*Explorer -> connection -> Users & roles* inspects and manages the accounts of the managed database
+(`admin.view_users`, `admin.manage_users`, `admin.manage_privileges`; ADR-0016). Notes:
+
+- The account DB Wrench connects with, superusers and system accounts are shown as *protected* and
+  cannot be changed here. Give that account just enough rights: on PostgreSQL `CREATEROLE` (and
+  `ADMIN OPTION` on the roles it grants), on MySQL `CREATE USER` plus `GRANT OPTION` on the databases
+  it should grant on and `SELECT` on `mysql.user`, on MongoDB `userAdmin` on the databases it manages.
+- Passwords need at least 12 characters and are never stored by DB Wrench. On PostgreSQL they are
+  SCRAM-hashed before they reach the server.
+- Dropping an account needs its name typed; privilege changes need it on production connections.
+  *Governance* can require a second person's approval for these operations.
+- Objects owned by a role block its removal: reassign ownership in the SQL workspace first.
+
 ## Command line
 
 `docker compose exec backend python -m app.cli <command>`

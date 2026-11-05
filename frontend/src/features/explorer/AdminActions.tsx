@@ -15,7 +15,7 @@ import { adminApi, explorerApi, withApproval, type TablePath } from "@/services/
 import type { Connection } from "@/types/api";
 
 /** Runs an administration call, optionally under an approved request, then refreshes the tree. */
-function useAdminCall<A>(
+export function useAdminCall<A>(
   operation: string,
   connection: Connection,
   run: (arg: A) => Promise<unknown>,

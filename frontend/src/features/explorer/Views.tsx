@@ -88,6 +88,11 @@ export function ConnectionHome() {
         actions={
           <>
             <CreateDatabaseButton connection={c} />
+            {canOn(c, "admin.view_users") && (
+              <Button asChild variant="outline">
+                <Link to={`/explorer/${c.id}/access`}>{t("access.open")}</Link>
+              </Button>
+            )}
             {canOn(c, "query.execute_read") && (
               <Button asChild variant="outline">
                 <Link to={workspacePath(c)}>{t("workspace.open")}</Link>

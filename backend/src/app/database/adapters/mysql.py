@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 import ssl
 import tempfile
 import threading
@@ -35,8 +36,17 @@ from app.database.relational.models import (
     TableInfo,
     TableStructure,
 )
+from app.database.relational.principals import (
+    GrantEntry,
+    GrantTarget,
+    PrincipalInfo,
+    check_password,
+    normalise_privileges,
+    refuse_protected,
+)
 from app.database.relational.sql_builder import MySQLDialect
 from app.errors import (
+    Conflict,
     ConnectionFailed,
     Forbidden,
     NotFound,
@@ -404,6 +414,179 @@ class MySQLAdapter(RelationalAdapter):
 
     def _drop_index_sql(self, schema: str | None, table: str, name: str) -> str:
         return f"DROP INDEX {self.dialect.quote(name)} ON {self.dialect.qualified(schema, table)}"
+
+    # ---- Phase 6: users and privileges ------------------------------------------------
+
+    _SYSTEM_USERS = frozenset(
+        {
+            "root",
+            "mysql.sys",
+            "mysql.session",
+            "mysql.infoschema",
+            "debian-sys-maint",
+            "mariadb.sys",
+        }
+    )
+    _DB_PRIVS = frozenset(
+        {
+            "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "INDEX",
+            "REFERENCES", "CREATE VIEW", "SHOW VIEW", "TRIGGER", "EXECUTE", "LOCK TABLES",
+            "CREATE TEMPORARY TABLES", "CREATE ROUTINE", "ALTER ROUTINE", "EVENT",
+        }
+    )  # fmt: skip
+    _TABLE_PRIVS = frozenset(
+        {
+            "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "INDEX",
+            "REFERENCES", "CREATE VIEW", "SHOW VIEW", "TRIGGER",
+        }
+    )  # fmt: skip
+    _USER_NAME = re.compile(r"^[A-Za-z0-9_.\-]{1,32}$")
+    _HOST = re.compile(r"^[A-Za-z0-9_.:%\-]{1,255}$")
+
+    def _host(self, host: str | None) -> str:
+        h = host or "%"
+        if not self._HOST.fullmatch(h):
+            raise ValidationFailed("Invalid host pattern.")
+        return h
+
+    def list_principals(self) -> list[PrincipalInfo]:
+        _, rows = self._run_many(
+            [
+                (
+                    "SELECT User, Host, account_locked, password_expired, plugin FROM mysql.user "
+                    "ORDER BY User, Host",
+                    [],
+                )
+            ]
+        )[0]
+        return [
+            PrincipalInfo(
+                name=r[0],
+                kind="user",
+                can_login=r[2] != "Y",
+                protected=r[0] in self._SYSTEM_USERS or r[0] == self.spec.username or not r[0],
+                host=r[1],
+                attributes={"locked": r[2] == "Y", "password_expired": r[3] == "Y", "plugin": r[4]},
+            )
+            for r in rows
+        ]
+
+    def _principal(self, name: str, host: str | None) -> tuple[PrincipalInfo, str]:
+        h = self._host(host)
+        found = next((p for p in self.list_principals() if p.name == name and p.host == h), None)
+        return refuse_protected(found, f"{name}@{h}"), h
+
+    def create_principal(
+        self, name: str, *, password: str | None, host: str | None, options: dict[str, Any]
+    ) -> None:
+        self._assert_admin_writable()
+        if not self._USER_NAME.fullmatch(name):
+            raise ValidationFailed("Invalid user name (1-32 letters, digits, '_', '.', '-').")
+        h = self._host(host)
+        if name in self._SYSTEM_USERS:
+            raise Forbidden(f"{name!r} is reserved.")
+        if not password:
+            raise ValidationFailed("A user needs a password.")
+        check_password(password)
+        unknown = set(options) - {"require_ssl"}
+        if unknown:
+            raise ValidationFailed(f"Unknown or forbidden option(s): {', '.join(sorted(unknown))}.")
+        if any(p.name == name and p.host == h for p in self.list_principals()):
+            raise Conflict(f"User {name}@{h} already exists.")
+        tail = " REQUIRE SSL" if options.get("require_ssl") is True else ""
+        with self._admin_cursor(None) as cur:
+            cur.execute(f"CREATE USER %s@%s IDENTIFIED BY %s{tail}", (name, h, password))  # noqa: S608
+
+    def alter_principal(
+        self, name: str, *, host: str | None, password: str | None, options: dict[str, Any]
+    ) -> None:
+        self._assert_admin_writable()
+        _, h = self._principal(name, host)
+        unknown = set(options) - {"lock"}
+        if unknown:
+            raise ValidationFailed(f"Unknown or forbidden option(s): {', '.join(sorted(unknown))}.")
+        if not password and "lock" not in options:
+            raise ValidationFailed("Nothing to change.")
+        with self._admin_cursor(None) as cur:
+            if password:
+                check_password(password)
+                cur.execute("ALTER USER %s@%s IDENTIFIED BY %s", (name, h, password))
+            if "lock" in options:
+                if not isinstance(options["lock"], bool):
+                    raise ValidationFailed("lock must be true or false.")
+                word = "LOCK" if options["lock"] else "UNLOCK"
+                cur.execute(f"ALTER USER %s@%s ACCOUNT {word}", (name, h))  # noqa: S608
+
+    def drop_principal(self, name: str, *, host: str | None) -> None:
+        self._assert_admin_writable()
+        _, h = self._principal(name, host)
+        with self._admin_cursor(None) as cur:
+            cur.execute("DROP USER %s@%s", (name, h))
+
+    def list_principal_grants(
+        self, name: str, *, host: str | None, database: str | None
+    ) -> list[GrantEntry]:
+        h = self._host(host)
+        if not any(p.name == name and p.host == h for p in self.list_principals()):
+            raise NotFound(f"{name}@{h} was not found.")
+        grantee = f"'{name}'@'{h}'"
+        res = self._run_many(
+            [
+                ("SELECT PRIVILEGE_TYPE, IS_GRANTABLE FROM information_schema.USER_PRIVILEGES "
+                 "WHERE GRANTEE = %s", [grantee]),
+                ("SELECT TABLE_SCHEMA, PRIVILEGE_TYPE, IS_GRANTABLE FROM "
+                 "information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = %s", [grantee]),
+                ("SELECT TABLE_SCHEMA, TABLE_NAME, PRIVILEGE_TYPE, IS_GRANTABLE FROM "
+                 "information_schema.TABLE_PRIVILEGES WHERE GRANTEE = %s", [grantee]),
+            ]
+        )  # fmt: skip
+        grouped: dict[tuple[str, str | None, str | None], GrantEntry] = {}
+
+        def add(kind: str, db: str | None, obj: str | None, priv: str, grantable: str) -> None:
+            if database and db and db != database:
+                return
+            e = grouped.setdefault((kind, db, obj), GrantEntry(kind, db, None, obj, [], False))
+            e.privileges.append(priv)
+            e.grantable = e.grantable or grantable == "YES"
+
+        for priv, g in res[0][1]:
+            if priv != "USAGE":
+                add("global", None, None, priv, g)
+        for db, priv, g in res[1][1]:
+            add("database", db, None, priv, g)
+        for db, tbl, priv, g in res[2][1]:
+            add("table", db, tbl, priv, g)
+        return sorted(grouped.values(), key=lambda e: (e.kind, e.database or "", e.object or ""))
+
+    def change_privileges(  # noqa: PLR0913
+        self,
+        name: str,
+        *,
+        host: str | None,
+        grant: bool,
+        privileges: list[str],
+        target: GrantTarget,
+    ) -> None:
+        self._assert_admin_writable()
+        _, h = self._principal(name, host)
+        if not target.database:
+            raise ValidationFailed("A database is required.")
+        self._require_database(target.database)
+        d = self.dialect
+        if target.kind == "database":
+            privs = normalise_privileges(privileges, self._DB_PRIVS)
+            what = f"{d.quote(target.database)}.*"
+        elif target.kind == "table":
+            privs = normalise_privileges(privileges, self._TABLE_PRIVS)
+            st = self.get_structure(target.database, None, target.object or "")
+            what = f"{d.quote(target.database)}.{d.quote(st.name)}"
+        else:
+            raise UnsupportedCapability("MySQL grants apply to a database or a table.")
+        plist = ", ".join(privs)
+        verb = "GRANT {} ON {} TO %s@%s" if grant else "REVOKE {} ON {} FROM %s@%s"
+        with self._admin_cursor(None) as cur:
+            cur.execute(verb.format(plist, what), (name, h))  # noqa: S608
+        self._refresh()
 
     # ---- Phase 3: writes and streaming ------------------------------------------------
 

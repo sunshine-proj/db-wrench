@@ -2076,36 +2076,6 @@
         "title": "GrantItem",
         "type": "object"
       },
-      "GrantOut": {
-        "properties": {
-          "role": {
-            "title": "Role",
-            "type": "string"
-          },
-          "role_id": {
-            "format": "uuid",
-            "title": "Role Id",
-            "type": "string"
-          },
-          "user_id": {
-            "format": "uuid",
-            "title": "User Id",
-            "type": "string"
-          },
-          "username": {
-            "title": "Username",
-            "type": "string"
-          }
-        },
-        "required": [
-          "user_id",
-          "username",
-          "role_id",
-          "role"
-        ],
-        "title": "GrantOut",
-        "type": "object"
-      },
       "GrantsUpdate": {
         "additionalProperties": false,
         "properties": {
@@ -2478,6 +2448,34 @@
           "markers"
         ],
         "title": "MarkersBody",
+        "type": "object"
+      },
+      "MembershipBody": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "role": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "MembershipBody",
         "type": "object"
       },
       "MfaCodeRequest": {
@@ -2853,6 +2851,188 @@
           "field"
         ],
         "title": "MongoIndexKey",
+        "type": "object"
+      },
+      "MongoPassword": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "format": "password",
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "MongoPassword",
+        "type": "object"
+      },
+      "MongoPrivilege": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Actions",
+            "type": "array"
+          },
+          "collection": {
+            "default": "",
+            "maxLength": 255,
+            "title": "Collection",
+            "type": "string"
+          },
+          "db": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Db"
+          }
+        },
+        "required": [
+          "actions"
+        ],
+        "title": "MongoPrivilege",
+        "type": "object"
+      },
+      "MongoPrivileges": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "privileges": {
+            "items": {
+              "$ref": "#/components/schemas/MongoPrivilege"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Privileges",
+            "type": "array"
+          }
+        },
+        "required": [
+          "privileges"
+        ],
+        "title": "MongoPrivileges",
+        "type": "object"
+      },
+      "MongoRoleCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "privileges": {
+            "items": {
+              "$ref": "#/components/schemas/MongoPrivilege"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Privileges",
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleRef"
+            },
+            "maxItems": 20,
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "privileges"
+        ],
+        "title": "MongoRoleCreate",
+        "type": "object"
+      },
+      "MongoRoles": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleRef"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles"
+        ],
+        "title": "MongoRoles",
+        "type": "object"
+      },
+      "MongoUserCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "format": "password",
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleRef"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "password",
+          "roles"
+        ],
+        "title": "MongoUserCreate",
         "type": "object"
       },
       "NetworkPolicyIn": {
@@ -3249,6 +3429,166 @@
         "title": "PolicyOut",
         "type": "object"
       },
+      "PrincipalCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "host": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "format": "password",
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PrincipalCreate",
+        "type": "object"
+      },
+      "PrincipalOut": {
+        "properties": {
+          "attributes": {
+            "additionalProperties": true,
+            "title": "Attributes",
+            "type": "object"
+          },
+          "can_login": {
+            "title": "Can Login",
+            "type": "boolean"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "member_of": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Member Of",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "protected": {
+            "title": "Protected",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "can_login",
+          "protected",
+          "host",
+          "member_of",
+          "attributes"
+        ],
+        "title": "PrincipalOut",
+        "type": "object"
+      },
+      "PrincipalUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "format": "password",
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          }
+        },
+        "title": "PrincipalUpdate",
+        "type": "object"
+      },
+      "PrivilegeChange": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "privileges": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 40,
+            "minItems": 1,
+            "title": "Privileges",
+            "type": "array"
+          },
+          "target": {
+            "$ref": "#/components/schemas/TargetIn"
+          }
+        },
+        "required": [
+          "privileges",
+          "target"
+        ],
+        "title": "PrivilegeChange",
+        "type": "object"
+      },
       "ResultSetOut": {
         "properties": {
           "columns": {
@@ -3385,6 +3725,34 @@
           "require_mfa"
         ],
         "title": "RoleOut",
+        "type": "object"
+      },
+      "RoleRef": {
+        "additionalProperties": false,
+        "properties": {
+          "db": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Db"
+          },
+          "role": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "RoleRef",
         "type": "object"
       },
       "RoleUpdate": {
@@ -4352,6 +4720,62 @@
         "title": "TableStructure",
         "type": "object"
       },
+      "TargetIn": {
+        "additionalProperties": false,
+        "properties": {
+          "database": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database"
+          },
+          "kind": {
+            "enum": [
+              "database",
+              "schema",
+              "table",
+              "all_tables"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "object": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object"
+          },
+          "schema": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "TargetIn",
+        "type": "object"
+      },
       "TlsMode": {
         "enum": [
           "disable",
@@ -4866,6 +5290,98 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "app__api__principals__GrantOut": {
+        "properties": {
+          "database": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database"
+          },
+          "grantable": {
+            "title": "Grantable",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "object": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object"
+          },
+          "privileges": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Privileges",
+            "type": "array"
+          },
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema"
+          }
+        },
+        "required": [
+          "kind",
+          "database",
+          "schema",
+          "object",
+          "privileges",
+          "grantable"
+        ],
+        "title": "GrantOut",
+        "type": "object"
+      },
+      "app__api__schemas__GrantOut": {
+        "properties": {
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "role_id": {
+            "format": "uuid",
+            "title": "Role Id",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "username",
+          "role_id",
+          "role"
+        ],
+        "title": "GrantOut",
         "type": "object"
       }
     }
@@ -9718,7 +10234,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/GrantOut"
+                    "$ref": "#/components/schemas/app__api__schemas__GrantOut"
                   },
                   "title": "Response Get Grants  Get  Api V1 Connections Cid Grants",
                   "type": "array"
@@ -9773,7 +10289,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/GrantOut"
+                    "$ref": "#/components/schemas/app__api__schemas__GrantOut"
                   },
                   "title": "Response Put Grants  Put  Api V1 Connections Cid Grants",
                   "type": "array"
@@ -11349,6 +11865,863 @@
         ]
       }
     },
+    "/api/v1/connections/{cid}/mongo/databases/{database}/roles": {
+      "get": {
+        "operationId": "mongo_roles__get__api_v1_connections_cid_mongo_databases_database_roles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Mongo Roles  Get  Api V1 Connections Cid Mongo Databases Database Roles",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Roles",
+        "tags": [
+          "principals"
+        ]
+      },
+      "post": {
+        "operationId": "mongo_create_role__post__api_v1_connections_cid_mongo_databases_database_roles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoRoleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Mongo Create Role  Post  Api V1 Connections Cid Mongo Databases Database Roles",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Create Role",
+        "tags": [
+          "principals"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/mongo/databases/{database}/roles/{role}": {
+      "delete": {
+        "operationId": "mongo_drop_role__delete__api_v1_connections_cid_mongo_databases_database_roles_role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DropBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Drop Role",
+        "tags": [
+          "principals"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/mongo/databases/{database}/roles/{role}/privileges": {
+      "delete": {
+        "operationId": "mongo_revoke_privileges__delete__api_v1_connections_cid_mongo_databases_database_roles_role_privileges",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoPrivileges"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Revoke Privileges",
+        "tags": [
+          "principals"
+        ]
+      },
+      "post": {
+        "operationId": "mongo_grant_privileges__post__api_v1_connections_cid_mongo_databases_database_roles_role_privileges",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "title": "Role",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoPrivileges"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Grant Privileges",
+        "tags": [
+          "principals"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/mongo/databases/{database}/users": {
+      "get": {
+        "operationId": "mongo_users__get__api_v1_connections_cid_mongo_databases_database_users",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Mongo Users  Get  Api V1 Connections Cid Mongo Databases Database Users",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Users",
+        "tags": [
+          "principals"
+        ]
+      },
+      "post": {
+        "operationId": "mongo_create_user__post__api_v1_connections_cid_mongo_databases_database_users",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoUserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Mongo Create User  Post  Api V1 Connections Cid Mongo Databases Database Users",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Create User",
+        "tags": [
+          "principals"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/mongo/databases/{database}/users/{name}": {
+      "delete": {
+        "operationId": "mongo_drop_user__delete__api_v1_connections_cid_mongo_databases_database_users_name",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DropBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Drop User",
+        "tags": [
+          "principals"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/mongo/databases/{database}/users/{name}/password": {
+      "put": {
+        "operationId": "mongo_set_password__put__api_v1_connections_cid_mongo_databases_database_users_name_password",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoPassword"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Set Password",
+        "tags": [
+          "principals"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/mongo/databases/{database}/users/{name}/roles": {
+      "delete": {
+        "operationId": "mongo_revoke_roles__delete__api_v1_connections_cid_mongo_databases_database_users_name_roles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoRoles"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Revoke Roles",
+        "tags": [
+          "principals"
+        ]
+      },
+      "post": {
+        "operationId": "mongo_grant_roles__post__api_v1_connections_cid_mongo_databases_database_users_name_roles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoRoles"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mongo Grant Roles",
+        "tags": [
+          "principals"
+        ]
+      }
+    },
     "/api/v1/connections/{cid}/mongo/queries/execute": {
       "post": {
         "operationId": "execute_mongo__post__api_v1_connections_cid_mongo_queries_execute",
@@ -11418,6 +12791,727 @@
         "summary": "Execute Mongo",
         "tags": [
           "query"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/principals": {
+      "get": {
+        "operationId": "list_principals__get__api_v1_connections_cid_principals",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PrincipalOut"
+                  },
+                  "title": "Response List Principals  Get  Api V1 Connections Cid Principals",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Principals",
+        "tags": [
+          "principals"
+        ]
+      },
+      "post": {
+        "operationId": "create_principal__post__api_v1_connections_cid_principals",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrincipalCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrincipalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Principal",
+        "tags": [
+          "principals"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/principals/{name}": {
+      "delete": {
+        "operationId": "drop_principal__delete__api_v1_connections_cid_principals_name",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "MySQL account host",
+            "in": "query",
+            "name": "host",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "MySQL account host",
+              "title": "Host"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DropBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Drop Principal",
+        "tags": [
+          "principals"
+        ]
+      },
+      "patch": {
+        "operationId": "alter_principal__patch__api_v1_connections_cid_principals_name",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "MySQL account host",
+            "in": "query",
+            "name": "host",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "MySQL account host",
+              "title": "Host"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrincipalUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Alter Principal",
+        "tags": [
+          "principals"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/principals/{name}/grants": {
+      "delete": {
+        "operationId": "revoke_privileges__delete__api_v1_connections_cid_principals_name_grants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "MySQL account host",
+            "in": "query",
+            "name": "host",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "MySQL account host",
+              "title": "Host"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrivilegeChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Privileges",
+        "tags": [
+          "principals"
+        ]
+      },
+      "get": {
+        "operationId": "principal_grants__get__api_v1_connections_cid_principals_name_grants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "database",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Database"
+            }
+          },
+          {
+            "description": "MySQL account host",
+            "in": "query",
+            "name": "host",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "MySQL account host",
+              "title": "Host"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/app__api__principals__GrantOut"
+                  },
+                  "title": "Response Principal Grants  Get  Api V1 Connections Cid Principals Name Grants",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Principal Grants",
+        "tags": [
+          "principals"
+        ]
+      },
+      "post": {
+        "operationId": "grant_privileges__post__api_v1_connections_cid_principals_name_grants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "MySQL account host",
+            "in": "query",
+            "name": "host",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "MySQL account host",
+              "title": "Host"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrivilegeChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Grant Privileges",
+        "tags": [
+          "principals"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/principals/{name}/memberships": {
+      "delete": {
+        "operationId": "revoke_membership__delete__api_v1_connections_cid_principals_name_memberships",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Membership",
+        "tags": [
+          "principals"
+        ]
+      },
+      "post": {
+        "operationId": "grant_membership__post__api_v1_connections_cid_principals_name_memberships",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Id of an approved request for this operation.",
+            "in": "header",
+            "name": "Approval-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id of an approved request for this operation.",
+              "title": "Approval-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Grant Membership",
+        "tags": [
+          "principals"
         ]
       }
     },

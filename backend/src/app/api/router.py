@@ -11,6 +11,7 @@ from app.api import (
     explorer,
     governance,
     importing,
+    principals,
     query,
     sso,
     tokens,
@@ -37,3 +38,5 @@ api_router.include_router(importing.router)
 api_router.include_router(importing.mongo)
 api_router.include_router(sso.router)
 api_router.include_router(sso.settings_router)
+api_router.include_router(principals.router)
+api_router.include_router(principals.mongo)

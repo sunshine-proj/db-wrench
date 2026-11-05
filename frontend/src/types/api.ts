@@ -590,3 +590,56 @@ export interface DocImportPreview {
   token: string | null;
   requires_confirmation: boolean;
 }
+
+// ------------------------------------------------------------------ Phase 6
+
+export interface Principal {
+  name: string;
+  kind: "user" | "role";
+  can_login: boolean;
+  protected: boolean;
+  host: string | null;
+  member_of: string[];
+  attributes: Record<string, unknown>;
+}
+
+export interface PrivilegeGrant {
+  kind: "database" | "schema" | "table" | "global";
+  database: string | null;
+  schema: string | null;
+  object: string | null;
+  privileges: string[];
+  grantable: boolean;
+}
+
+export interface GrantTarget {
+  kind: "database" | "schema" | "table" | "all_tables";
+  database?: string;
+  schema?: string;
+  object?: string;
+}
+
+export interface MongoRoleRef {
+  role: string;
+  db: string;
+}
+
+export interface MongoUser {
+  name: string;
+  database: string;
+  roles: MongoRoleRef[];
+  protected: boolean;
+}
+
+export interface MongoPrivilege {
+  resource: { db?: string; collection?: string };
+  actions: string[];
+}
+
+export interface MongoRole {
+  role: string;
+  database: string;
+  builtin: boolean;
+  roles: MongoRoleRef[];
+  privileges: MongoPrivilege[];
+}

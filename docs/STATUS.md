@@ -6,7 +6,7 @@ defined in PRD.md section 13 and README.md section 9.
 
 ## Active phase
 
-**Phase 6: Extended administration (database users, roles and privileges)** (not started). Phases 0-5 are implemented.
+**Phase 7: MCP and AI integration** (not started). Phases 0-6 are implemented.
 
 ## Phase checklist
 
@@ -18,10 +18,10 @@ defined in PRD.md section 13 and README.md section 9.
 | 3     | Data editor and export                      | Done        |
 | 4     | Query workspaces                            | Done        |
 | 5     | Administration, import, SSO, approvals      | Done        |
-| 6     | Extended administration (users and roles)   | Not started |
+| 6     | Extended administration (users and roles)   | Done        |
 | 7     | MCP and AI integration                      | Not started |
 
-## What exists (Phases 0-5)
+## What exists (Phases 0-6)
 
 - **Foundation:** FastAPI backend, React/Vite/Tailwind frontend, Alembic migrations, Docker
   Compose (default + hardened production overlay), reverse proxy with TLS profile, health and
@@ -54,6 +54,12 @@ defined in PRD.md section 13 and README.md section 9.
   mapping (ADR-0012); scoped, expiring API tokens; role grants on a database, schema or
   table/collection (ADR-0013); per-user managed-database credentials; audit export and
   syslog/SIEM forwarding; opt-in OpenTelemetry tracing (ADR-0015).
+- **Database users, roles and privileges (Phase 6):** inspect, create, alter (password, lock,
+  role attributes) and drop PostgreSQL roles, MySQL accounts and MongoDB users and custom roles;
+  grant and revoke privileges on databases, schemas, tables (PostgreSQL also all tables in a
+  schema and role membership; MongoDB role assignment and custom-role privileges). Allowlisted
+  privileges, protected accounts (superusers, system accounts, DB Wrench's own account), write-only
+  passwords, typed confirmation, optional four-eyes approval, audit (ADR-0016).
 - **Frontend:** setup, login (+MFA, +SSO), account/security, dashboard, connections (+access dialog),
   explorer tree, grid and document browsers, users, roles, network policy, audit log; i18n layer;
   strict CSP; WCAG-minded markup.
@@ -63,9 +69,9 @@ defined in PRD.md section 13 and README.md section 9.
 | Item | Where it lands |
 | --- | --- |
 | SAML / LDAP single sign-on | future (ADR required) |
+| Column-level, routine-level and default privileges; MySQL global privileges | future |
 | Approval policies per role (policies are per connection and environment today) | future |
 | Table creation/alteration through the UI (use the SQL workspace) | future |
-| Database user/role/privilege management | Phase 6 |
 | MCP server and AI assistance | Phase 7 |
 | Mongo replica-set topology discovery (needs address filtering, ADR-0007) | future |
 
@@ -91,6 +97,9 @@ defined in PRD.md section 13 and README.md section 9.
   MongoDB workspaces.
 - Approvals have no delegation, quorum greater than one, or notification channel yet; reviewers see
   them under *Approvals*.
+- Database principals: objects owned by a role block its drop; MySQL grants cover a database or a
+  table only; MongoDB users live in a database other than `admin`/`local`/`config` (system
+  databases are not managed here).
 - The Phase 5 screens were exercised in a real browser against the Docker stack (database
   create/drop with typed confirmation, CSV import with and without errors, an approval round trip
   between two users, API tokens, the integrations/governance/audit/approvals pages). The SSO login

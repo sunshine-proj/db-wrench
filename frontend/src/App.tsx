@@ -36,6 +36,9 @@ const IntegrationsPage = lazy(() =>
 const TokensPage = lazy(() =>
   import("@/features/settings/TokensPage").then((m) => ({ default: m.TokensPage })),
 );
+const PrincipalsPage = lazy(() =>
+  import("@/features/administration/PrincipalsPage").then((m) => ({ default: m.PrincipalsPage })),
+);
 const AuditPage = lazy(() =>
   import("@/features/audit/AuditPage").then((m) => ({ default: m.AuditPage })),
 );
@@ -110,6 +113,7 @@ export function App() {
               <Route path="s/:db/:schema/:table" element={<TableView />} />
               <Route path="d/:db/:table" element={<TableView />} />
               <Route path="m/:db/:coll" element={<CollectionView />} />
+              <Route path="access" element={<PrincipalsPage />} />
             </Route>
           </Route>
           <Route path="workspace">

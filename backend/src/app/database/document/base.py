@@ -150,3 +150,44 @@ class DocumentAdapter(DatabaseAdapter, ABC):
         self, database: str, collection: str, docs: list[dict[str, Any]]
     ) -> tuple[int, list[dict[str, Any]]]:
         """Insert (never upsert). Returns (inserted, per-document errors). Not atomic."""
+
+    # ---- users, roles and privileges (Phase 6) ----------------------------------------
+
+    @abstractmethod
+    def list_users(self, database: str) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    def create_user(
+        self, database: str, name: str, password: str, roles: list[dict[str, str]]
+    ) -> None: ...
+
+    @abstractmethod
+    def set_user_password(self, database: str, name: str, password: str) -> None: ...
+
+    @abstractmethod
+    def drop_user(self, database: str, name: str) -> None: ...
+
+    @abstractmethod
+    def change_user_roles(
+        self, database: str, name: str, roles: list[dict[str, str]], *, grant: bool
+    ) -> None: ...
+
+    @abstractmethod
+    def list_roles(self, database: str) -> list[dict[str, Any]]: ...
+
+    @abstractmethod
+    def create_role(
+        self,
+        database: str,
+        name: str,
+        privileges: list[dict[str, Any]],
+        roles: list[dict[str, str]],
+    ) -> None: ...
+
+    @abstractmethod
+    def drop_role(self, database: str, role: str) -> None: ...
+
+    @abstractmethod
+    def change_role_privileges(
+        self, database: str, role: str, privileges: list[dict[str, Any]], *, grant: bool
+    ) -> None: ...

@@ -22,6 +22,7 @@ from app.database.relational.models import (
     TableInfo,
     TableStructure,
 )
+from app.database.relational.principals import GrantEntry, GrantTarget, PrincipalInfo
 from app.database.relational.sql_builder import Dialect, build_select, encode_cursor
 from app.errors import NotFound, UnsupportedCapability
 
@@ -32,6 +33,43 @@ class RelationalAdapter(DatabaseAdapter, RelationalEditing, RelationalAdmin, Rel
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._meta = TtlCache(ttl=30.0)
+
+    # ---- principals (Phase 6) ---------------------------------------------------------
+
+    def list_principals(self) -> list[PrincipalInfo]:
+        raise UnsupportedCapability("This engine does not expose users or roles here.")
+
+    def create_principal(
+        self, name: str, *, password: str | None, host: str | None, options: dict[str, Any]
+    ) -> None:
+        raise UnsupportedCapability("This engine does not manage users or roles here.")
+
+    def alter_principal(
+        self, name: str, *, host: str | None, password: str | None, options: dict[str, Any]
+    ) -> None:
+        raise UnsupportedCapability("This engine does not manage users or roles here.")
+
+    def drop_principal(self, name: str, *, host: str | None) -> None:
+        raise UnsupportedCapability("This engine does not manage users or roles here.")
+
+    def list_principal_grants(
+        self, name: str, *, host: str | None, database: str | None
+    ) -> list[GrantEntry]:
+        raise UnsupportedCapability("This engine does not expose privileges here.")
+
+    def change_privileges(  # noqa: PLR0913
+        self,
+        name: str,
+        *,
+        host: str | None,
+        grant: bool,
+        privileges: list[str],
+        target: GrantTarget,
+    ) -> None:
+        raise UnsupportedCapability("This engine does not manage privileges here.")
+
+    def change_membership(self, name: str, role: str, *, grant: bool) -> None:
+        raise UnsupportedCapability("This engine has no role membership.")
 
     # ---- metadata ---------------------------------------------------------------------
 

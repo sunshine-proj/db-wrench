@@ -38,6 +38,7 @@ from app.database.document.models import (
     DocPage,
     DocQuery,
 )
+from app.database.relational.principals import check_password
 from app.errors import (
     Conflict,
     ConnectionFailed,
@@ -541,6 +542,198 @@ class MongoAdapter(DocumentAdapter):
                         for e in details.get("writeErrors", [])
                     )
         return inserted, errors
+
+    # ---- Phase 6: users, roles and privileges ----------------------------------------
+
+    ASSIGNABLE_BUILTIN_ROLES = frozenset({"read", "readWrite", "dbAdmin", "dbOwner", "userAdmin"})
+    PRIVILEGE_ACTIONS = frozenset(
+        {
+            "find", "insert", "update", "remove", "createCollection", "dropCollection",
+            "createIndex", "dropIndex", "listCollections", "listIndexes", "collStats", "dbStats",
+        }
+    )  # fmt: skip
+    _USER_NAME = re.compile(r"^[A-Za-z0-9_.@\-]{1,64}$")
+    _ROLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_\-]{0,62}$")
+
+    def _principal_db(self, database: str, *, write: bool) -> None:
+        self._require_database(database)
+        if write:
+            self._assert_admin_writable()
+            if database.lower() in self.PROTECTED_DATABASES:
+                raise Forbidden(f"Users and roles of {database!r} cannot be changed here.")
+
+    def _is_self(self, database: str, name: str) -> bool:
+        auth_db = str(self.spec.options.get("auth_source", "admin"))
+        return name == self.spec.username and database == auth_db
+
+    def _cmd(self, database: str, command: dict[str, Any]) -> Any:
+        with self._errors():
+            return self._client()[database].command(command)
+
+    def list_users(self, database: str) -> list[dict[str, Any]]:
+        self._principal_db(database, write=False)
+        info = self._cmd(database, {"usersInfo": 1})
+        return [
+            {
+                "name": u["user"],
+                "database": u["db"],
+                "roles": [{"role": r["role"], "db": r["db"]} for r in u.get("roles", [])],
+                "protected": database.lower() in self.PROTECTED_DATABASES
+                or self._is_self(database, u["user"]),
+            }
+            for u in info.get("users", [])
+        ]
+
+    def _existing_user(self, database: str, name: str) -> dict[str, Any]:
+        found = next((u for u in self.list_users(database) if u["name"] == name), None)
+        if found is None:
+            raise NotFound(f"User {name!r} was not found in {database!r}.")
+        if found["protected"]:
+            raise Forbidden(f"User {name!r} is protected and cannot be changed here.")
+        return found
+
+    def _check_roles(self, database: str, roles: list[dict[str, str]]) -> list[dict[str, str]]:
+        if not roles:
+            raise ValidationFailed("Choose at least one role.")
+        known_dbs = {d.name for d in self.list_databases()}
+        out: list[dict[str, str]] = []
+        for r in roles:
+            role, rdb = r.get("role", ""), r.get("db", database)
+            if rdb.lower() in self.PROTECTED_DATABASES or rdb not in known_dbs | {database}:
+                raise ValidationFailed(f"Roles on database {rdb!r} cannot be assigned here.")
+            custom = {c["role"] for c in self.list_roles(rdb) if not c["builtin"]}
+            if role not in self.ASSIGNABLE_BUILTIN_ROLES and role not in custom:
+                raise ValidationFailed(f"Role {role!r} cannot be assigned here.")
+            out.append({"role": role, "db": rdb})
+        return out
+
+    def create_user(
+        self, database: str, name: str, password: str, roles: list[dict[str, str]]
+    ) -> None:
+        self._principal_db(database, write=True)
+        if not self._USER_NAME.fullmatch(name):
+            raise ValidationFailed("Invalid user name.")
+        check_password(password)
+        if any(u["name"] == name for u in self.list_users(database)):
+            raise Conflict(f"User {name!r} already exists in {database!r}.")
+        checked = self._check_roles(database, roles)
+        self._cmd(database, {"createUser": name, "pwd": password, "roles": checked})
+
+    def set_user_password(self, database: str, name: str, password: str) -> None:
+        self._principal_db(database, write=True)
+        self._existing_user(database, name)
+        check_password(password)
+        self._cmd(database, {"updateUser": name, "pwd": password})
+
+    def drop_user(self, database: str, name: str) -> None:
+        self._principal_db(database, write=True)
+        self._existing_user(database, name)
+        self._cmd(database, {"dropUser": name})
+
+    def change_user_roles(
+        self, database: str, name: str, roles: list[dict[str, str]], *, grant: bool
+    ) -> None:
+        self._principal_db(database, write=True)
+        user = self._existing_user(database, name)
+        if grant:
+            checked = self._check_roles(database, roles)
+            self._cmd(database, {"grantRolesToUser": name, "roles": checked})
+            return
+        have = {(r["role"], r["db"]) for r in user["roles"]}
+        wanted = [{"role": r.get("role", ""), "db": r.get("db", database)} for r in roles]
+        missing = [r for r in wanted if (r["role"], r["db"]) not in have]
+        if not wanted or missing:
+            raise ValidationFailed("The user does not hold these roles.")
+        self._cmd(database, {"revokeRolesFromUser": name, "roles": wanted})
+
+    def list_roles(self, database: str) -> list[dict[str, Any]]:
+        self._principal_db(database, write=False)
+        info = self._cmd(
+            database,
+            {"rolesInfo": 1, "showBuiltinRoles": True, "showPrivileges": True},
+        )
+        return [
+            {
+                "role": r["role"],
+                "database": r["db"],
+                "builtin": bool(r.get("isBuiltin")),
+                "roles": [{"role": x["role"], "db": x["db"]} for x in r.get("roles", [])],
+                "privileges": [
+                    {
+                        "resource": {
+                            k: v
+                            for k, v in p.get("resource", {}).items()
+                            if k in ("db", "collection")
+                        },
+                        "actions": list(p.get("actions", [])),
+                    }
+                    for p in r.get("privileges", [])
+                    if "db" in p.get("resource", {})
+                ],
+            }
+            for r in info.get("roles", [])
+        ]
+
+    def _custom_role(self, database: str, role: str) -> dict[str, Any]:
+        found = next((r for r in self.list_roles(database) if r["role"] == role), None)
+        if found is None:
+            raise NotFound(f"Role {role!r} was not found in {database!r}.")
+        if found["builtin"]:
+            raise Forbidden("Built-in roles cannot be changed.")
+        return found
+
+    def _check_privileges(
+        self, database: str, privileges: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        if not privileges:
+            raise ValidationFailed("Choose at least one privilege.")
+        known_dbs = {d.name for d in self.list_databases()}
+        out: list[dict[str, Any]] = []
+        for p in privileges:
+            res = p.get("resource") or {}
+            rdb, coll = res.get("db", database), res.get("collection", "")
+            if rdb.lower() in self.PROTECTED_DATABASES or rdb not in known_dbs:
+                raise ValidationFailed(f"Privileges on database {rdb!r} cannot be granted here.")
+            if coll and coll not in {c.name for c in self.list_collections(rdb)}:
+                raise NotFound(f"Collection {coll!r} was not found.")
+            actions = sorted(set(p.get("actions") or []))
+            bad = [a for a in actions if a not in self.PRIVILEGE_ACTIONS]
+            if not actions or bad:
+                raise ValidationFailed(
+                    f"Actions must be from: {', '.join(sorted(self.PRIVILEGE_ACTIONS))}."
+                )
+            out.append({"resource": {"db": rdb, "collection": coll}, "actions": actions})
+        return out
+
+    def create_role(
+        self,
+        database: str,
+        name: str,
+        privileges: list[dict[str, Any]],
+        roles: list[dict[str, str]],
+    ) -> None:
+        self._principal_db(database, write=True)
+        if not self._ROLE_NAME.fullmatch(name) or name in self.ASSIGNABLE_BUILTIN_ROLES:
+            raise ValidationFailed("Invalid role name.")
+        if any(r["role"] == name for r in self.list_roles(database)):
+            raise Conflict(f"Role {name!r} already exists.")
+        privs = self._check_privileges(database, privileges)
+        inherited = self._check_roles(database, roles) if roles else []
+        self._cmd(database, {"createRole": name, "privileges": privs, "roles": inherited})
+
+    def drop_role(self, database: str, role: str) -> None:
+        self._principal_db(database, write=True)
+        self._custom_role(database, role)
+        self._cmd(database, {"dropRole": role})
+
+    def change_role_privileges(
+        self, database: str, role: str, privileges: list[dict[str, Any]], *, grant: bool
+    ) -> None:
+        self._principal_db(database, write=True)
+        self._custom_role(database, role)
+        privs = self._check_privileges(database, privileges)
+        key = "grantPrivilegesToRole" if grant else "revokePrivilegesFromRole"
+        self._cmd(database, {key: role, "privileges": privs})
 
     # ---- Phase 3: writes and streaming ------------------------------------------------
 

@@ -69,15 +69,106 @@ The next phase is Phase 5; start the stack with ./scripts/init-env.sh then docke
 
 
 
+
+=========================================================
+
+
+
+
+
+
+Phase 5 is finished and nothing is red. The final full backend run is still in progress; its last complete run was 875 passed, 3 skipped. I'll report its result the moment it lands. The frontend, the contract regeneration and the real-browser run are all done.
+
+What now exists
+Administration. Create and drop databases, schemas (PostgreSQL), collections and indexes on all three engines.
+Drops need the object's name typed back in every environment, and use RESTRICT.
+System objects and the connection's own database can't be dropped.
+Approvals and policies. A gated request answers 428 approval_required, a second user approves, and the requester repeats the same request with Approval-Id.
+Applies to the admin operations, bulk delete/update and import commit.
+MongoDB $out/$merge always need an approval.
+Import. CSV into tables and JSON/NDJSON into collections. The relational preview runs a real rolled-back trial insert, so errors come back with row numbers. Commit is all-or-nothing.
+SSO. OIDC with PKCE and group-to-role mapping. Super Admin can never be assigned by SSO.
+API tokens. Scoped and expiring, and never more powerful than their owner.
+Scoped grants. A role on a database, schema or table/collection.
+Per-user credentials. Each user's own database login, stored encrypted.
+Audit. Export of CSV/JSON/NDJSON, verifiable offline against the hash chain, plus syslog/SIEM forwarding that resumes after an outage.
+Tracing. Opt-in OpenTelemetry.
+Frontend. Pages for approvals, governance, tokens, integrations, audit export, import, index/database actions and the credential and scoped-access dialogs.
+Docs. ADRs 0011–0015, plus updates to STATUS, README, AGENTS, PRD, SECURITY and operations.
+Verification
+Backend lint, format and mypy are clean. The unit suite is 252 tests; 62 more integration tests were added since the previous full run.
+Frontend: 174 tests, plus tsc, eslint, prettier and build clean.
+Real browser against the Docker stack: 7 of 7 flows pass, covering database create/drop, CSV import with and without errors, an approval round trip between two users, tokens, and the new pages.
+The OpenAPI contract is regenerated (105 paths, unique operation ids).
+Bugs the tests and browser run caught
+Approval digest. An approval for one database name also authorised creating another. The digest now binds the target.
+Proxy rate limit. The auth rate limit also covered read calls like /auth/session, so rapid page loads returned 429 and logged users out. It now applies only to credential endpoints; a regression test guards it.
+Tracing leak. OpenTelemetry recorded query strings, which carry filters and search text. They are now stripped.
+PyMySQL first login. PyMySQL crashes on the first plain-TCP login of a caching_sha2_password user. The adapter retries once for that case.
+Two input crashes. A boolean index direction and a list-valued $merge option are now rejected cleanly (422/400) instead of being accepted or crashing with a 500.
+Things to know
+Changed test. An old MongoDB test expected $out on a read-only connection to fail validation with a 422. It now fails at the permission check with a 403, which is stricter. I rewrote that test and left the other cases untouched.
+New dependencies. PyJWT[crypto] and httpx are now runtime dependencies, and the OpenTelemetry packages are an optional otel extra. Build the image with DBW_EXTRAS="--extra otel" to include it.
+Known limits are recorded in docs/STATUS.md:
+The SSO login button, the scoped-access and personal-credentials dialogs, and the SSO login against a real identity provider are covered by tests only, not by the browser run.
+MongoDB import is not atomic.
+The identity-provider HTTP client validates the destination but doesn't pin the resolved address.
+SAML/LDAP are not implemented.
+Cleanup. I removed the throwaway Docker stack, its network, the .env, the screenshots and frontend/dist. Other containers on the host were untouched. Next is Phase 6, extended administration (database users, roles and privileges); STATUS.md now lists it as active.
+
+
+
+
 =========================================================
 
 
-Phase 5 is complete, and docs/STATUS.md now has Phase 6 (database users, roles and privileges) as the active phase.
+
+
+Phase 6 is built and passing everything I've seen so far, but the final full backend run hasn't reported yet. I'll give its result when it lands. The Phase 6 tests (41 passed, 1 skipped), the 256 unit tests, the 181 frontend tests (lint, types and build clean) and the real-browser check all passed on their own.
+
+What Phase 6 adds
+PostgreSQL: list, create, alter and drop roles, including role membership, with grant/revoke on databases, schemas, tables and all tables in a schema.
+MySQL: list, create, alter (password, lock/unlock) and drop user@host accounts, with grant/revoke on databases and tables.
+MongoDB: per-database users, role assignment, and custom roles with collection-level privileges.
+UI: a new "Users & roles" page, reached from a connection's explorer.
+Docs: ADR-0016, plus updates to STATUS, README, AGENTS, PRD and the operations guide. The OpenAPI contract is regenerated (116 paths, 157 unique operation ids).
+Safety rules
+Privileges: they come from per-engine allowlists. "ALL" expands only to that list, never the engine's own ALL. Superuser, replication, GRANT OPTION, global rights, FILE/SUPER, cluster-wide Mongo roles and the admin/local/config databases cannot be granted.
+Protected accounts: superusers, system accounts and the account DB Wrench itself connects with are listed but cannot be altered, dropped or granted to.
+Passwords: they must be at least 12 characters and are never stored, returned, audited or put in an approval summary. On PostgreSQL they are hashed client-side first.
+Permissions: the new read-only permission admin.view_users lets people inspect accounts on read-only connections. Everything stays connection-level, so scoped grants can't reach it.
+Confirmation and approval: dropping an account needs its name typed. Privilege changes need it on production. Five new operations can require four-eyes approval.
+Verification
+Real browser: I checked the Docker stack in a real browser and verified results on the database with actual logins.
+Known limits: objects a role owns block dropping it. MySQL grants cover a database or table only. Column-level, routine-level, default and MySQL global privileges need SQL. They are listed in docs/STATUS.md.
+Cleanup: I removed the throwaway stack and its temporary files. docs/STATUS.md now marks Phase 6 Done, with Phase 7 (MCP and AI integration) active.
 
 
 
 
-=========================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

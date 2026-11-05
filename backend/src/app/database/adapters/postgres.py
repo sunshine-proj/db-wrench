@@ -13,11 +13,13 @@ from typing import Any
 
 import psycopg
 import sqlalchemy.exc
+from psycopg import sql
 from psycopg.types.json import Json, Jsonb
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
 from app.database.core.base import Capabilities, TestResult
+from app.database.relational.admin import validate_new_name
 from app.database.relational.base import RelationalAdapter
 from app.database.relational.models import (
     ColumnInfo,
@@ -31,6 +33,14 @@ from app.database.relational.models import (
     SequenceInfo,
     TableInfo,
     TableStructure,
+)
+from app.database.relational.principals import (
+    GrantEntry,
+    GrantTarget,
+    PrincipalInfo,
+    check_password,
+    normalise_privileges,
+    refuse_protected,
 )
 from app.database.relational.sql_builder import PostgresDialect
 from app.errors import (
@@ -482,6 +492,247 @@ class PostgresAdapter(RelationalAdapter):
 
     def _drop_index_sql(self, schema: str | None, table: str, name: str) -> str:
         return f"DROP INDEX {self.dialect.qualified(self._need_schema(schema), name)}"
+
+    # ---- Phase 6: users, roles and privileges ----------------------------------------
+
+    _DB_PRIVS = frozenset({"CONNECT", "CREATE", "TEMPORARY"})
+    _SCHEMA_PRIVS = frozenset({"USAGE", "CREATE"})
+    _TABLE_PRIVS = frozenset(
+        {"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"}
+    )
+    _ROLE_FLAGS = ("login", "createdb", "createrole", "inherit")
+
+    def list_principals(self) -> list[PrincipalInfo]:
+        _, rows = self._run_many(
+            self._default_db(),
+            [
+                (
+                    "SELECT r.rolname, r.rolcanlogin, r.rolsuper, r.rolcreatedb, r.rolcreaterole, "
+                    "r.rolinherit, r.rolconnlimit, r.rolvaliduntil, r.rolreplication, "
+                    "r.rolbypassrls, ARRAY(SELECT b.rolname FROM pg_auth_members m "
+                    "JOIN pg_roles b ON b.oid = m.roleid WHERE m.member = r.oid ORDER BY 1) "
+                    "FROM pg_roles r WHERE r.rolname NOT LIKE 'pg\\_%%' ORDER BY r.rolname",
+                    [],
+                )
+            ],
+        )[0]
+        out: list[PrincipalInfo] = []
+        for r in rows:
+            until = r[7].isoformat() if r[7] is not None else None
+            out.append(
+                PrincipalInfo(
+                    name=r[0],
+                    kind="user" if r[1] else "role",
+                    can_login=bool(r[1]),
+                    protected=bool(r[2]) or r[0] == self.spec.username or "%" in r[0],
+                    member_of=list(r[10]),
+                    attributes={
+                        "superuser": bool(r[2]),
+                        "createdb": bool(r[3]),
+                        "createrole": bool(r[4]),
+                        "inherit": bool(r[5]),
+                        "connection_limit": r[6],
+                        "valid_until": until,
+                        "replication": bool(r[8]),
+                        "bypassrls": bool(r[9]),
+                    },
+                )
+            )
+        return out
+
+    def _principal(self, name: str) -> PrincipalInfo:
+        return refuse_protected(
+            next((p for p in self.list_principals() if p.name == name), None), name
+        )
+
+    def _role_options(self, options: dict[str, Any], *, creating: bool) -> list[Any]:
+        """Allowlisted ``WITH`` clauses. Superuser, replication and bypassrls cannot be set."""
+        known = set(self._ROLE_FLAGS) | {"connection_limit", "valid_until", "member_of"}
+        unknown = set(options) - known
+        if unknown:
+            raise ValidationFailed(f"Unknown or forbidden option(s): {', '.join(sorted(unknown))}.")
+        parts: list[Any] = []
+        for flag in self._ROLE_FLAGS:
+            if flag in options:
+                if not isinstance(options[flag], bool):
+                    raise ValidationFailed(f"{flag} must be true or false.")
+                parts.append(sql.SQL(flag.upper() if options[flag] else "NO" + flag.upper()))
+        limit = options.get("connection_limit")
+        if limit is not None:
+            if isinstance(limit, bool) or not isinstance(limit, int) or not -1 <= limit <= 10_000:
+                raise ValidationFailed("connection_limit must be -1 (unlimited) to 10000.")
+            parts.append(sql.SQL("CONNECTION LIMIT {}").format(sql.Literal(limit)))
+        until = options.get("valid_until")
+        if until is not None:
+            if not isinstance(until, str) or not 0 < len(until) <= 40:
+                raise ValidationFailed("valid_until must be a timestamp or 'infinity'.")
+            parts.append(sql.SQL("VALID UNTIL {}").format(sql.Literal(until)))
+        del creating
+        return parts
+
+    @staticmethod
+    def _hashed(cur: Any, name: str, password: str) -> Any:
+        """SCRAM-hash client-side so the plaintext never reaches the server (or its logs)."""
+        enc = cur.connection.pgconn.encrypt_password(
+            password.encode(), name.encode(), b"scram-sha-256"
+        )
+        return sql.Literal(enc.decode())
+
+    def create_principal(
+        self, name: str, *, password: str | None, host: str | None, options: dict[str, Any]
+    ) -> None:
+        self._assert_admin_writable()
+        validate_new_name("role", name)
+        if name.lower().startswith("pg_"):
+            raise ValidationFailed("Role names starting with 'pg_' are reserved.")
+        if host:
+            raise ValidationFailed("PostgreSQL roles have no host.")
+        if name in {p.name for p in self.list_principals()}:
+            raise Conflict(f"Role {name!r} already exists.")
+        opts = dict(options)
+        member_of = list(opts.pop("member_of", []) or [])
+        opts.setdefault("login", False)
+        parts = self._role_options(opts, creating=True)
+        if opts["login"] and not password:
+            raise ValidationFailed("A login role needs a password.")
+        existing = {p.name: p for p in self.list_principals()}
+        for r in member_of:
+            self._grantable_role(existing, r)
+        with self._admin_cursor(None) as cur:
+            stmt = sql.SQL("CREATE ROLE {} WITH ").format(sql.Identifier(name))
+            stmt += sql.SQL(" ").join(parts) if parts else sql.SQL("")
+            if password:
+                check_password(password)
+                stmt += sql.SQL(" PASSWORD {}").format(self._hashed(cur, name, password))
+            cur.execute(stmt)
+            for r in member_of:
+                cur.execute(
+                    sql.SQL("GRANT {} TO {}").format(sql.Identifier(r), sql.Identifier(name))
+                )
+
+    def alter_principal(
+        self, name: str, *, host: str | None, password: str | None, options: dict[str, Any]
+    ) -> None:
+        self._assert_admin_writable()
+        self._principal(name)
+        opts = dict(options)
+        if "member_of" in opts:
+            raise ValidationFailed("Use the membership endpoints to change role membership.")
+        parts = self._role_options(opts, creating=False)
+        if not parts and not password:
+            raise ValidationFailed("Nothing to change.")
+        with self._admin_cursor(None) as cur:
+            stmt = sql.SQL("ALTER ROLE {} WITH ").format(sql.Identifier(name))
+            stmt += sql.SQL(" ").join(parts) if parts else sql.SQL("")
+            if password:
+                check_password(password)
+                stmt += sql.SQL(" PASSWORD {}").format(self._hashed(cur, name, password))
+            cur.execute(stmt)
+
+    def drop_principal(self, name: str, *, host: str | None) -> None:
+        self._assert_admin_writable()
+        self._principal(name)
+        with self._admin_cursor(None) as cur:
+            cur.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(name)))
+
+    def list_principal_grants(
+        self, name: str, *, host: str | None, database: str | None
+    ) -> list[GrantEntry]:
+        if not any(p.name == name for p in self.list_principals()):
+            raise NotFound(f"{name!r} was not found.")
+        db = database or self._default_db()
+        self._require_database(db)
+        skip = "n.nspname NOT LIKE 'pg\\_%%' AND n.nspname <> 'information_schema'"
+        queries = [
+            (
+                "database",
+                "SELECT d.datname, NULL, NULL, a.privilege_type, a.is_grantable FROM pg_database d "
+                "CROSS JOIN LATERAL aclexplode(d.datacl) a JOIN pg_roles g ON g.oid = a.grantee "
+                "WHERE g.rolname = %s AND d.datname = current_database()",
+            ),
+            (
+                "schema",
+                "SELECT current_database(), n.nspname, NULL, a.privilege_type, a.is_grantable "
+                "FROM pg_namespace n CROSS JOIN LATERAL aclexplode(n.nspacl) a "
+                f"JOIN pg_roles g ON g.oid = a.grantee WHERE g.rolname = %s AND {skip}",
+            ),
+            (
+                "table",
+                "SELECT current_database(), n.nspname, c.relname, a.privilege_type, a.is_grantable "
+                "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "CROSS JOIN LATERAL aclexplode(c.relacl) a JOIN pg_roles g ON g.oid = a.grantee "
+                f"WHERE g.rolname = %s AND c.relkind IN ('r','p','v','m','f') AND {skip}",
+            ),
+        ]
+        grouped: dict[tuple[str, str | None, str | None, str | None], GrantEntry] = {}
+        results = self._run_many(db, [(q, [name]) for _, q in queries])
+        for (kind, _), (_, rows) in zip(queries, results, strict=True):
+            for d, sch, obj, priv, grantable in rows:
+                key = (kind, d, sch, obj)
+                entry = grouped.setdefault(key, GrantEntry(kind, d, sch, obj, [], False))
+                entry.privileges.append(priv)
+                entry.grantable = entry.grantable or bool(grantable)
+        return sorted(grouped.values(), key=lambda e: (e.kind, e.schema or "", e.object or ""))
+
+    def _grantable_role(self, existing: dict[str, PrincipalInfo], role: str) -> None:
+        info = existing.get(role)
+        if info is None:
+            raise NotFound(f"Role {role!r} was not found.")
+        if info.protected or role.lower().startswith("pg_"):
+            raise Forbidden(f"Role {role!r} cannot be granted here.")
+
+    def change_privileges(  # noqa: PLR0913
+        self,
+        name: str,
+        *,
+        host: str | None,
+        grant: bool,
+        privileges: list[str],
+        target: GrantTarget,
+    ) -> None:
+        self._assert_admin_writable()
+        self._principal(name)
+        d = self.dialect
+        db = target.database or self._default_db()
+        self._require_database(db)
+        if target.kind == "database":
+            privs = normalise_privileges(privileges, self._DB_PRIVS)
+            what = sql.SQL("DATABASE {}").format(sql.Identifier(db))
+        elif target.kind in ("schema", "all_tables"):
+            schema = self._need_schema(target.schema)
+            if schema not in {s.name for s in self.list_schemas(db)}:
+                raise NotFound(f"Schema {schema!r} was not found.")
+            if target.kind == "schema":
+                privs = normalise_privileges(privileges, self._SCHEMA_PRIVS)
+                what = sql.SQL("SCHEMA {}").format(sql.Identifier(schema))
+            else:
+                privs = normalise_privileges(privileges, self._TABLE_PRIVS)
+                what = sql.SQL("ALL TABLES IN SCHEMA {}").format(sql.Identifier(schema))
+        elif target.kind == "table":
+            privs = normalise_privileges(privileges, self._TABLE_PRIVS)
+            st = self.get_structure(db, self._need_schema(target.schema), target.object or "")
+            what = sql.SQL("TABLE {}.{}").format(
+                sql.Identifier(st.schema or ""), sql.Identifier(st.name)
+            )
+        else:
+            raise ValidationFailed(f"Unknown target kind {target.kind!r}.")
+        del d
+        verb = sql.SQL("GRANT {} ON {} TO {}" if grant else "REVOKE {} ON {} FROM {}")
+        with self._admin_cursor(db) as cur:
+            cur.execute(
+                verb.format(
+                    sql.SQL(", ").join(sql.SQL(p) for p in privs), what, sql.Identifier(name)
+                )
+            )
+        self._refresh()
+
+    def change_membership(self, name: str, role: str, *, grant: bool) -> None:
+        self._assert_admin_writable()
+        self._principal(name)
+        self._grantable_role({p.name: p for p in self.list_principals()}, role)
+        verb = sql.SQL("GRANT {} TO {}" if grant else "REVOKE {} FROM {}")
+        with self._admin_cursor(None) as cur:
+            cur.execute(verb.format(sql.Identifier(role), sql.Identifier(name)))
 
     # ---- Phase 3: writes and streaming ------------------------------------------------
 

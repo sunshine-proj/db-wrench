@@ -44,6 +44,11 @@ POLICY_OPERATIONS: frozenset[str] = frozenset(
         "data.bulk_delete",
         "data.bulk_update",
         "import.commit",
+        "admin.create_principal",
+        "admin.alter_principal",
+        "admin.drop_principal",
+        "admin.grant_privileges",
+        "admin.revoke_privileges",
         "query.mongo_write_stage",
     }
 )

@@ -5,6 +5,12 @@
  * the session endpoints is attached to every state-changing request.
  */
 import type {
+  GrantTarget,
+  MongoRole,
+  MongoRoleRef,
+  MongoUser,
+  Principal,
+  PrivilegeGrant,
   ApiTokenCreated,
   ApiTokenInfo,
   Approval,
@@ -670,4 +676,103 @@ export const auditSinkApi = {
   test: () => post<{ ok: boolean; error: string | null }>("settings/audit-sink/test"),
   exportUrl: (format: "csv" | "json" | "ndjson", params: Record<string, string> = {}) =>
     `${BASE}/audit/export${query({ format, ...params })}`,
+};
+
+// ------------------------------------------------------------------ Phase 6
+
+const hostQ = (host?: string | null): Params => (host ? { host } : {});
+
+export const principalsApi = {
+  list: (cid: string) => get<Principal[]>(`connections/${seg(cid)}/principals`),
+  create: (
+    cid: string,
+    b: { name: string; password?: string; host?: string; options?: Record<string, unknown> },
+  ) => post<Principal>(`connections/${seg(cid)}/principals`, b),
+  alter: (
+    cid: string,
+    name: string,
+    host: string | null,
+    b: { password?: string; options?: Record<string, unknown> },
+  ) =>
+    request<void>("PATCH", `connections/${seg(cid)}/principals/${seg(name)}`, {
+      body: b,
+      params: hostQ(host),
+    }),
+  drop: (cid: string, name: string, host: string | null) =>
+    request<void>("DELETE", `connections/${seg(cid)}/principals/${seg(name)}`, {
+      body: { confirm: name },
+      params: hostQ(host),
+    }),
+  grants: (cid: string, name: string, host: string | null, database?: string) =>
+    get<PrivilegeGrant[]>(`connections/${seg(cid)}/principals/${seg(name)}/grants`, {
+      ...hostQ(host),
+      database,
+    }),
+  changePrivileges: (
+    cid: string,
+    name: string,
+    host: string | null,
+    grant: boolean,
+    b: { privileges: string[]; target: GrantTarget; confirm?: string },
+  ) =>
+    request<void>(
+      grant ? "POST" : "DELETE",
+      `connections/${seg(cid)}/principals/${seg(name)}/grants`,
+      {
+        body: b,
+        params: hostQ(host),
+      },
+    ),
+  changeMembership: (cid: string, name: string, role: string, grant: boolean, confirm?: string) =>
+    request<void>(
+      grant ? "POST" : "DELETE",
+      `connections/${seg(cid)}/principals/${seg(name)}/memberships`,
+      { body: { role, confirm } },
+    ),
+};
+
+const mongoPrincipals = (cid: string, db: string) =>
+  `connections/${seg(cid)}/mongo/databases/${seg(db)}`;
+
+export const mongoPrincipalsApi = {
+  users: (cid: string, db: string) => get<MongoUser[]>(`${mongoPrincipals(cid, db)}/users`),
+  createUser: (
+    cid: string,
+    db: string,
+    b: { name: string; password: string; roles: { role: string; db?: string }[] },
+  ) => post<{ name: string }>(`${mongoPrincipals(cid, db)}/users`, b),
+  setPassword: (cid: string, db: string, name: string, password: string) =>
+    put<void>(`${mongoPrincipals(cid, db)}/users/${seg(name)}/password`, { password }),
+  dropUser: (cid: string, db: string, name: string) =>
+    del(`${mongoPrincipals(cid, db)}/users/${seg(name)}`, { confirm: name }),
+  changeRoles: (cid: string, db: string, name: string, roles: MongoRoleRef[], grant: boolean) =>
+    request<void>(
+      grant ? "POST" : "DELETE",
+      `${mongoPrincipals(cid, db)}/users/${seg(name)}/roles`,
+      {
+        body: { roles, confirm: name },
+      },
+    ),
+  roles: (cid: string, db: string) => get<MongoRole[]>(`${mongoPrincipals(cid, db)}/roles`),
+  createRole: (
+    cid: string,
+    db: string,
+    b: { name: string; privileges: { collection: string; actions: string[] }[] },
+  ) => post<{ name: string }>(`${mongoPrincipals(cid, db)}/roles`, b),
+  dropRole: (cid: string, db: string, role: string) =>
+    del(`${mongoPrincipals(cid, db)}/roles/${seg(role)}`, { confirm: role }),
+  changeRolePrivileges: (
+    cid: string,
+    db: string,
+    role: string,
+    privileges: { collection: string; actions: string[] }[],
+    grant: boolean,
+  ) =>
+    request<void>(
+      grant ? "POST" : "DELETE",
+      `${mongoPrincipals(cid, db)}/roles/${seg(role)}/privileges`,
+      {
+        body: { privileges, confirm: role },
+      },
+    ),
 };

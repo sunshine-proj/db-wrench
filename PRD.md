@@ -865,6 +865,10 @@ and document families are designed up front.
 - Database user and role management for PostgreSQL, MySQL, and MongoDB
 - Privilege grant and revoke
 
+Implementation note (Phase 6): privileges come from per-engine allowlists (no superuser/global/
+cluster-wide rights), protected accounts cannot be changed, and everything is connection-level
+(ADR-0016).
+
 ### Phase 7: MCP and AI Integration
 
 - MCP server with read-only tools
