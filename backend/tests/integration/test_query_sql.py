@@ -173,8 +173,8 @@ async def test_session_and_transaction_control_is_refused(wr, sql):
 
 
 @pytest.mark.security
-async def test_read_only_connections_only_run_reads(wr, admin, pg_managed, mysql_managed):
-    info = pg_managed if wr.engine == "postgresql" else mysql_managed
+async def test_read_only_connections_only_run_reads(wr, admin):
+    info = wr.info
     ro = await create_connection(admin, wr.engine, info)  # read-only by default
     ok = await run(admin, wr, f"SELECT COUNT(*) FROM {wr.table}", cid=ro["id"])
     assert ok.status_code == 200
@@ -202,9 +202,12 @@ async def test_the_database_itself_refuses_writes_hidden_in_a_select(wr, admin, 
 
 
 @pytest.mark.security
-def test_adapters_refuse_the_read_only_escape_even_when_called_directly(pg_managed, mysql_managed):
+def test_adapters_refuse_the_read_only_escape_even_when_called_directly(
+    pg_managed, mysql_managed, mariadb_managed
+):
     """ADR-0008 at adapter level, bypassing the classifier entirely."""
     from app.connections.network import NetworkPolicy
+    from app.database.adapters.mariadb import MariaDBAdapter
     from app.database.adapters.mysql import MySQLAdapter
     from app.database.adapters.postgres import PostgresAdapter
     from app.database.core.base import ConnectionSpec, DbType, Limits
@@ -228,6 +231,9 @@ def test_adapters_refuse_the_read_only_escape_even_when_called_directly(pg_manag
     )
     my = MySQLAdapter(
         spec(DbType.MYSQL, mysql_managed), NetworkPolicy(allow_loopback=True), Limits()
+    )
+    maria = MariaDBAdapter(
+        spec(DbType.MARIADB, mariadb_managed), NetworkPolicy(allow_loopback=True), Limits()
     )
     noop = lambda _ref: None  # noqa: E731
     kw = {
@@ -265,9 +271,20 @@ def test_adapters_refuse_the_read_only_escape_even_when_called_directly(pg_manag
                 ],
                 **kw,
             )
+        # MariaDB 10.x names the variable tx_read_only (transaction_read_only is 11.x only), so the
+        # real escape is tx_read_only; both spellings must fail to enable the write.
+        for var in ("tx_read_only", "transaction_read_only"):
+            with pytest.raises(QueryFailed):
+                maria.run_sql(
+                    "shop",
+                    None,
+                    [f"SET SESSION {var} = 0", "INSERT INTO secret_sink VALUES (98, 'pwned')"],
+                    **kw,
+                )
     finally:
         pg.close()
         my.close()
+        maria.close()
     assert not any(
         "escaped" in str(r)
         for r in __import__("psycopg")

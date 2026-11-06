@@ -73,6 +73,23 @@ class MySQLAdapter(RelationalAdapter):
         supports_keyset_pagination=True,
     )
     dialect = MySQLDialect()
+    # Engine-specific session statements (MariaDB overrides these, see adapters/mariadb.py).
+    _SYSTEM_DBS: tuple[str, ...] = SYSTEM_DATABASES
+    _TIMEOUT_ERROR_CODES = _TIMEOUT_CODES
+    _LABEL = "MySQL"
+
+    @staticmethod
+    def _session_init(writable: bool, timeout_s: int) -> str:
+        return (
+            f"SET SESSION transaction_read_only={0 if writable else 1}, "
+            f"SESSION max_execution_time={timeout_s * 1000}"
+        )
+
+    @staticmethod
+    def _timeout_sql(timeout_s: int) -> str:
+        return f"SET SESSION max_execution_time={int(timeout_s) * 1000}"
+
+    _USER_FILTER = ""  # extra predicate for mysql.user listings
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -105,10 +122,7 @@ class MySQLAdapter(RelationalAdapter):
             "write_timeout": timeout + 5,
             "charset": "utf8mb4",
             "autocommit": False,
-            "init_command": (
-                f"SET SESSION transaction_read_only={0 if writable else 1}, "
-                f"SESSION max_execution_time={timeout * 1000}"
-            ),
+            "init_command": self._session_init(writable, timeout),
         }
         flag = 0
         if writable:
@@ -169,7 +183,7 @@ class MySQLAdapter(RelationalAdapter):
         except pymysql.err.OperationalError as exc:
             code = exc.args[0] if exc.args else 0
             text = str(exc.args[1]) if len(exc.args) > 1 else str(exc)
-            if code in _TIMEOUT_CODES or "timed out" in text.lower():
+            if code in self._TIMEOUT_ERROR_CODES or "timed out" in text.lower():
                 raise StatementTimeout() from exc
             if code in _CONNECTION_CODES or (isinstance(code, int) and code >= 2000):
                 raise ConnectionFailed(scrub(text, self.spec.password)) from exc
@@ -235,13 +249,13 @@ class MySQLAdapter(RelationalAdapter):
 
     def list_databases(self) -> list[DatabaseInfo]:
         def load() -> list[DatabaseInfo]:
-            placeholders = ", ".join(["%s"] * len(SYSTEM_DATABASES))
+            placeholders = ", ".join(["%s"] * len(self._SYSTEM_DBS))
             _, rows = self._run_many(
                 [
                     (
                         "SELECT schema_name FROM information_schema.schemata "  # noqa: S608
                         f"WHERE schema_name NOT IN ({placeholders}) ORDER BY schema_name",
-                        list(SYSTEM_DATABASES),
+                        list(self._SYSTEM_DBS),
                     )
                 ]
             )[0]
@@ -250,7 +264,7 @@ class MySQLAdapter(RelationalAdapter):
         return self._meta.get_or_load(("databases",), load)
 
     def list_schemas(self, database: str) -> list[SchemaInfo]:
-        raise UnsupportedCapability("MySQL has no schema level below the database.")
+        raise UnsupportedCapability(f"{self._LABEL} has no schema level below the database.")
 
     def list_tables(self, database: str, schema: str | None) -> list[TableInfo]:
         self._require_database(database)
@@ -370,7 +384,7 @@ class MySQLAdapter(RelationalAdapter):
 
     # ---- Phase 5: administration ------------------------------------------------------
 
-    PROTECTED_DATABASES = frozenset(SYSTEM_DATABASES)
+    PROTECTED_DATABASES: frozenset[str] = frozenset(SYSTEM_DATABASES)
 
     def _admin_conn(self, database: str | None) -> Any:
         conn = self._connect(writable=True)
@@ -454,7 +468,7 @@ class MySQLAdapter(RelationalAdapter):
             [
                 (
                     "SELECT User, Host, account_locked, password_expired, plugin FROM mysql.user "
-                    "ORDER BY User, Host",
+                    f"{self._USER_FILTER}ORDER BY User, Host",
                     [],
                 )
             ]
@@ -581,7 +595,7 @@ class MySQLAdapter(RelationalAdapter):
             st = self.get_structure(target.database, None, target.object or "")
             what = f"{d.quote(target.database)}.{d.quote(st.name)}"
         else:
-            raise UnsupportedCapability("MySQL grants apply to a database or a table.")
+            raise UnsupportedCapability(f"{self._LABEL} grants apply to a database or a table.")
         plist = ", ".join(privs)
         verb = "GRANT {} ON {} TO %s@%s" if grant else "REVOKE {} ON {} FROM %s@%s"
         with self._admin_cursor(None) as cur:
@@ -674,7 +688,7 @@ class MySQLAdapter(RelationalAdapter):
             try:
                 conn.select_db(database)
                 cur = conn.cursor(pymysql.cursors.SSCursor)
-                cur.execute(f"SET SESSION max_execution_time={int(timeout_s) * 1000}")
+                cur.execute(self._timeout_sql(timeout_s))
                 # Explicit transaction characteristics cannot be changed from inside it.
                 cur.execute("START TRANSACTION" if write else "START TRANSACTION READ ONLY")
                 ref = {"thread_id": conn.thread_id()}

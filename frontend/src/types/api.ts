@@ -1,4 +1,4 @@
-export type DbType = "postgresql" | "mysql" | "mongodb";
+export type DbType = "postgresql" | "mysql" | "mariadb" | "mongodb";
 export type Environment = "production" | "staging" | "development" | "other";
 export type TlsMode = "disable" | "require" | "verify-ca" | "verify-full";
 

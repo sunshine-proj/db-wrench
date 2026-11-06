@@ -38,13 +38,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { pg: "postgres:14-alpine", mysql: "mysql:8.0", mongo: "mongo:6.0" }
-          - { pg: "postgres:15-alpine", mysql: "mysql:8.4", mongo: "mongo:7.0" }
-          - { pg: "postgres:16-alpine", mysql: "mysql:8.4", mongo: "mongo:8.0" }
-          - { pg: "postgres:17.6-alpine", mysql: "mysql:8.4", mongo: "mongo:7.0" }
+          - { pg: "postgres:14-alpine", mysql: "mysql:8.0", maria: "mariadb:10.11", mongo: "mongo:6.0" }
+          - { pg: "postgres:15-alpine", mysql: "mysql:8.4", maria: "mariadb:11.4", mongo: "mongo:7.0" }
+          - { pg: "postgres:16-alpine", mysql: "mysql:8.4", maria: "mariadb:11.4", mongo: "mongo:8.0" }
+          - { pg: "postgres:17.6-alpine", mysql: "mysql:8.4", maria: "mariadb:10.11", mongo: "mongo:7.0" }
     env:
       DBW_TEST_PG_IMAGE: ${{ matrix.pg }}
       DBW_TEST_MYSQL_IMAGE: ${{ matrix.mysql }}
+      DBW_TEST_MARIADB_IMAGE: ${{ matrix.maria }}
       DBW_TEST_MONGO_IMAGE: ${{ matrix.mongo }}
     defaults: { run: { working-directory: backend } }
     steps:

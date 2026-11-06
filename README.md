@@ -29,10 +29,11 @@ Initial database support:
 | ---------- | -------------- | -------- | ----------------- |
 | PostgreSQL | 14 – 17        | Primary  | SQL               |
 | MySQL      | 8.0, 8.4       | Primary  | SQL               |
+| MariaDB    | 10.11, 11.4    | Primary  | SQL               |
 | MongoDB    | 6.0, 7.0, 8.0  | Primary  | MongoDB Query API |
 
 The architecture must allow additional database engines to be introduced through
-independent adapters. MariaDB is not supported initially.
+independent adapters. MariaDB has its own adapter (ADR-0017).
 
 ## 3. Main Features
 

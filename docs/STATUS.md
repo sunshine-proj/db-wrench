@@ -6,7 +6,9 @@ defined in PRD.md section 13 and README.md section 9.
 
 ## Active phase
 
-**Phase 7: MCP and AI integration** (not started). Phases 0-6 are implemented.
+**Phase 7: MCP and AI integration** (not started). Phases 0-6 are implemented. The owner has
+authorised additional database engines (ADR-0017) as a parallel track, one engine at a time, in this
+order: MariaDB (done), Microsoft SQL Server, Redis/Valkey, ClickHouse, SQLite, Elasticsearch.
 
 ## Phase checklist
 
@@ -20,6 +22,17 @@ defined in PRD.md section 13 and README.md section 9.
 | 5     | Administration, import, SSO, approvals      | Done        |
 | 6     | Extended administration (users and roles)   | Done        |
 | 7     | MCP and AI integration                      | Not started |
+
+### Additional engines track (ADR-0017)
+
+| Engine                  | Family       | Status      |
+| ----------------------- | ------------ | ----------- |
+| MariaDB 10.11, 11.4     | relational   | Done        |
+| Microsoft SQL Server    | relational   | Not started |
+| Redis / Valkey          | key-value    | Not started |
+| ClickHouse              | relational   | Not started |
+| SQLite                  | relational   | Not started |
+| Elasticsearch / OpenSearch | search    | Not started |
 
 ## What exists (Phases 0-6)
 
@@ -60,6 +73,10 @@ defined in PRD.md section 13 and README.md section 9.
   schema and role membership; MongoDB role assignment and custom-role privileges). Allowlisted
   privileges, protected accounts (superusers, system accounts, DB Wrench's own account), write-only
   passwords, typed confirmation, optional four-eyes approval, audit (ADR-0016).
+- **MariaDB (ADR-0017):** a separate adapter on the shared MySQL code path with MariaDB-specific
+  timeout, read-only, account and `JSON` handling; full parity with MySQL (explorer, editor, export,
+  import, SQL workspace, administration, users and privileges), 10.11 and 11.4 in the CI matrix.
+  Numeric key/expected values are now type-checked in the editor for every relational engine.
 - **Frontend:** setup, login (+MFA, +SSO), account/security, dashboard, connections (+access dialog),
   explorer tree, grid and document browsers, users, roles, network policy, audit log; i18n layer;
   strict CSP; WCAG-minded markup.
@@ -105,6 +122,9 @@ defined in PRD.md section 13 and README.md section 9.
   between two users, API tokens, the integrations/governance/audit/approvals pages). The SSO login
   button, the scoped-access and personal-credentials dialogs are covered by unit, component and
   integration tests only (no identity provider was available in the browser run).
+
+- MariaDB: roles (`CREATE ROLE`) are not managed, sequences are not listed, Galera/ColumnStore are
+  not modelled.
 
 ## Notes
 

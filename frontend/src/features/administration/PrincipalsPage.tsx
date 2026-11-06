@@ -65,7 +65,8 @@ const MONGO_BUILTIN = ["read", "readWrite", "dbAdmin", "dbOwner", "userAdmin"];
 
 /** Privileges offered for an object kind on an engine (the server enforces the same allowlists). */
 export function privilegesFor(engine: string, kind: GrantTarget["kind"]): string[] {
-  if (engine === "mysql") return kind === "database" ? MY_DB_PRIVS : MY_TABLE_PRIVS;
+  if (engine === "mysql" || engine === "mariadb")
+    return kind === "database" ? MY_DB_PRIVS : MY_TABLE_PRIVS;
   if (kind === "database") return DB_PRIVS;
   if (kind === "schema") return PG_SCHEMA_PRIVS;
   return PG_TABLE_PRIVS;

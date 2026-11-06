@@ -167,7 +167,8 @@ Pin production container image versions (by digest where practical).
 | Engine     | Supported versions | Notes                                  |
 | ---------- | ------------------ | -------------------------------------- |
 | PostgreSQL | 14, 15, 16, 17     |                                        |
-| MySQL      | 8.0, 8.4           | MariaDB is not supported initially     |
+| MySQL      | 8.0, 8.4           |                                        |
+| MariaDB    | 10.11, 11.4        | Separate adapter (ADR-0017)            |
 | MongoDB    | 6.0, 7.0, 8.0      | Standalone, replica set, sharded       |
 
 Every supported version must be covered by integration tests in CI.

@@ -11,6 +11,7 @@ import pymysql
 import pytest
 
 from app.connections.network import NetworkPolicy
+from app.database.adapters.mariadb import MariaDBAdapter
 from app.database.adapters.mongodb import MongoAdapter
 from app.database.adapters.mysql import MySQLAdapter
 from app.database.adapters.postgres import PostgresAdapter
@@ -50,6 +51,13 @@ def pg(pg_managed):
 @pytest.fixture
 def my(mysql_managed):
     a = MySQLAdapter(spec(DbType.MYSQL, mysql_managed), LOOPBACK_OK, Limits())
+    yield a
+    a.close()
+
+
+@pytest.fixture
+def maria(mariadb_managed):
+    a = MariaDBAdapter(spec(DbType.MARIADB, mariadb_managed), LOOPBACK_OK, Limits())
     yield a
     a.close()
 
@@ -103,6 +111,30 @@ def test_mysql_dml_is_refused_by_the_database(my, mysql_container, sql):
     conn.close()
 
 
+@pytest.mark.security
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "INSERT INTO secret_sink VALUES (2, 'pwned')",
+        "UPDATE secret_sink SET v = 'pwned'",
+        "DELETE FROM secret_sink",
+        "TRUNCATE TABLE secret_sink",
+    ],
+)
+def test_mariadb_dml_is_refused_by_the_database(maria, mariadb_container, sql):
+    with pytest.raises(QueryFailed):
+        maria._query("shop", sql, [])
+    conn = pymysql.connect(
+        host=mariadb_container.get_container_host_ip(),
+        port=int(mariadb_container.get_exposed_port(3306)),
+        user="root", password="rootpw", database="shop",
+    )  # fmt: skip
+    with conn.cursor() as cur:
+        cur.execute("SELECT v FROM secret_sink")
+        assert cur.fetchall() == (("must-not-change",),)
+    conn.close()
+
+
 def test_postgres_statement_timeout(pg_managed):
     a = PostgresAdapter(
         spec(DbType.POSTGRESQL, pg_managed), LOOPBACK_OK, Limits(statement_timeout_s=1)
@@ -134,15 +166,32 @@ def test_mysql_statement_timeout(mysql_managed):
         a.close()
 
 
+def test_mariadb_statement_timeout(mariadb_managed):
+    a = MariaDBAdapter(
+        spec(DbType.MARIADB, mariadb_managed), LOOPBACK_OK, Limits(statement_timeout_s=1)
+    )
+    try:
+        started = time.monotonic()
+        with pytest.raises(StatementTimeout):
+            a._query("shop", "SELECT SLEEP(5)", [])
+        assert time.monotonic() - started < 4
+        # max_statement_time also bounds statements other than SELECT-only sleeps, and the
+        # pooled connection stays usable afterwards
+        assert a._query("shop", "SELECT 1", [])[1] == [(1,)]
+    finally:
+        a.close()
+
+
 @pytest.mark.security
-@pytest.mark.parametrize("engine", ["pg", "mysql", "mongo"])
+@pytest.mark.parametrize("engine", ["pg", "mysql", "mariadb", "mongo"])
 def test_wrong_credentials_fail_cleanly_without_leaking_the_password(
-    engine, pg_managed, mysql_managed, mongo_managed
+    engine, pg_managed, mysql_managed, mariadb_managed, mongo_managed
 ):
     bad_pw = "Wr0ng-Credential-Value"
     cases = {
         "pg": (PostgresAdapter, DbType.POSTGRESQL, pg_managed),
         "mysql": (MySQLAdapter, DbType.MYSQL, mysql_managed),
+        "mariadb": (MariaDBAdapter, DbType.MARIADB, mariadb_managed),
         "mongo": (MongoAdapter, DbType.MONGODB, mongo_managed),
     }
     cls, typ, info = cases[engine]
@@ -156,14 +205,15 @@ def test_wrong_credentials_fail_cleanly_without_leaking_the_password(
 
 
 @pytest.mark.security
-@pytest.mark.parametrize("engine", ["pg", "mysql", "mongo"])
+@pytest.mark.parametrize("engine", ["pg", "mysql", "mariadb", "mongo"])
 def test_network_policy_is_enforced_when_connecting(
-    engine, pg_managed, mysql_managed, mongo_managed
+    engine, pg_managed, mysql_managed, mariadb_managed, mongo_managed
 ):
     """The adapters re-check the policy on every new physical connection (anti-rebinding)."""
     cases = {
         "pg": (PostgresAdapter, DbType.POSTGRESQL, pg_managed),
         "mysql": (MySQLAdapter, DbType.MYSQL, mysql_managed),
+        "mariadb": (MariaDBAdapter, DbType.MARIADB, mariadb_managed),
         "mongo": (MongoAdapter, DbType.MONGODB, mongo_managed),
     }
     cls, typ, info = cases[engine]
@@ -262,3 +312,9 @@ def test_postgres_read_only_cannot_be_switched_off_by_sql(pg, pg_container):
 def test_mysql_driver_rejects_multi_statement_input(my):
     with pytest.raises(QueryFailed):
         my._query("shop", "SELECT 1; SELECT 2", [])
+
+
+@pytest.mark.security
+def test_mariadb_driver_rejects_multi_statement_input(maria):
+    with pytest.raises(QueryFailed):
+        maria._query("shop", "SELECT 1; SELECT 2", [])

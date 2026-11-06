@@ -12,4 +12,9 @@ export const ENV_STYLES: Record<Environment, { badge: string; bar: string }> = {
   other: { badge: "bg-muted text-muted-foreground", bar: "bg-muted text-muted-foreground" },
 };
 
-export const DEFAULT_PORT = { postgresql: 5432, mysql: 3306, mongodb: 27017 } as const;
+export const DEFAULT_PORT = {
+  postgresql: 5432,
+  mysql: 3306,
+  mariadb: 3306,
+  mongodb: 27017,
+} as const;

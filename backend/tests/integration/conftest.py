@@ -1,7 +1,8 @@
 """Integration fixtures: real PostgreSQL / MySQL / MongoDB via testcontainers.
 
 Image versions are overridable (CI runs the full supported-version matrix):
-``DBW_TEST_PG_IMAGE``, ``DBW_TEST_MYSQL_IMAGE``, ``DBW_TEST_MONGO_IMAGE``.
+``DBW_TEST_PG_IMAGE``, ``DBW_TEST_MYSQL_IMAGE``, ``DBW_TEST_MARIADB_IMAGE``,
+``DBW_TEST_MONGO_IMAGE``.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from testcontainers.postgres import PostgresContainer
 
 PG_IMAGE = os.getenv("DBW_TEST_PG_IMAGE", "postgres:17.6-alpine")
 MYSQL_IMAGE = os.getenv("DBW_TEST_MYSQL_IMAGE", "mysql:8.4")
+MARIADB_IMAGE = os.getenv("DBW_TEST_MARIADB_IMAGE", "mariadb:11.4")
 MONGO_IMAGE = os.getenv("DBW_TEST_MONGO_IMAGE", "mongo:7.0")
 BACKEND = Path(__file__).resolve().parents[2]
 
@@ -55,6 +57,16 @@ def pg_container() -> Iterator[PostgresContainer]:
 @pytest.fixture(scope="session")
 def mysql_container() -> Iterator[MySqlContainer]:
     with MySqlContainer(MYSQL_IMAGE, root_password="rootpw", dbname="seed") as c:
+        yield c
+
+
+@pytest.fixture(scope="session")
+def mariadb_container() -> Iterator[MySqlContainer]:
+    # The MySQL testcontainer's readiness probe only needs the wire protocol; MariaDB images take
+    # MARIADB_* variables, which the helper does not set, so configure them explicitly.
+    c = MySqlContainer(MARIADB_IMAGE, root_password="rootpw", dbname="seed")
+    c.with_env("MARIADB_ROOT_PASSWORD", "rootpw").with_env("MARIADB_DATABASE", "seed")
+    with c:
         yield c
 
 
@@ -317,6 +329,19 @@ def mysql_managed(mysql_container: MySqlContainer) -> dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
+def mariadb_managed(mariadb_container: MySqlContainer) -> dict[str, Any]:
+    host = mariadb_container.get_container_host_ip()
+    port = int(mariadb_container.get_exposed_port(3306))
+    conn = pymysql.connect(host=host, port=port, user="root", password="rootpw", autocommit=True)
+    with conn.cursor() as cur:
+        for stmt in MYSQL_SETUP:
+            cur.execute(stmt)
+    conn.close()
+    return {"host": host, "port": port, "username": "root", "password": "rootpw",
+            "database": "shop"}  # fmt: skip
+
+
+@pytest.fixture(scope="session")
 def mongo_managed(mongo_container: MongoDbContainer) -> dict[str, Any]:
     host = mongo_container.get_container_host_ip()
     port = int(mongo_container.get_exposed_port(27017))
@@ -464,10 +489,10 @@ MYSQL_EDIT_TABLE = [
 ]
 
 
-@pytest_asyncio.fixture(params=["postgresql", "mysql"])
-async def wr(request, admin, pg_managed, mysql_managed) -> Writable:
+@pytest_asyncio.fixture(params=["postgresql", "mysql", "mariadb"])
+async def wr(request, admin, pg_managed, mysql_managed, mariadb_managed) -> Writable:
     engine = request.param
-    info = pg_managed if engine == "postgresql" else mysql_managed
+    info = {"postgresql": pg_managed, "mysql": mysql_managed, "mariadb": mariadb_managed}[engine]
     table = f"t_{uuid.uuid4().hex[:8]}"
     probe = Writable(admin, engine, "", table, info)
     if engine == "postgresql":

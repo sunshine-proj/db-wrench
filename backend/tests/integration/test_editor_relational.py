@@ -208,8 +208,8 @@ async def test_tables_without_a_primary_key_and_views_cannot_be_edited(wr):
 
 
 @pytest.mark.security
-async def test_read_only_connections_cannot_be_written(wr, admin, pg_managed, mysql_managed):
-    info = pg_managed if wr.engine == "postgresql" else mysql_managed
+async def test_read_only_connections_cannot_be_written(wr, admin):
+    info = wr.info
     ro = await create_connection(admin, wr.engine, info)  # read_only defaults to true
     ro_w = type(wr)(admin, wr.engine, ro["id"], wr.table, info)
     key = (await ro_w.rows())["row_keys"][0]

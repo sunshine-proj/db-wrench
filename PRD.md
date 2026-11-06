@@ -60,18 +60,21 @@ Initial supported engines and versions:
 | ---------- | -------------- | -------------------- | -------- |
 | PostgreSQL | 14, 15, 16, 17 | Full planned support | Highest  |
 | MySQL      | 8.0, 8.4       | Full planned support | High     |
+| MariaDB    | 10.11, 11.4    | Full planned support | High     |
 | MongoDB    | 6.0, 7.0, 8.0  | Full planned support | High     |
 
-MariaDB is not treated as MySQL; it is a separate future adapter. Every
+MariaDB is not treated as MySQL; it is a separate adapter (ADR-0017). Every
 supported version is covered by integration tests in CI.
 
 The architecture should allow future adapters.
 
-Potential future databases:
+Potential future databases (in planned order; see `docs/STATUS.md`):
 
-- MariaDB
 - Microsoft SQL Server
+- Redis / Valkey
+- ClickHouse
 - SQLite
+- Elasticsearch / OpenSearch
 - Oracle
 
 ## 5. Product Modules
@@ -890,7 +893,7 @@ Initial releases will not include:
 - Autonomous AI database modifications (AI-initiated writes always require a
   human approval step)
 - Multi-tenant SaaS infrastructure
-- MariaDB, SQL Server, SQLite, and Oracle adapters
+- SQL Server, Redis, ClickHouse, SQLite, Elasticsearch, and Oracle adapters
 
 These may be considered later.
 

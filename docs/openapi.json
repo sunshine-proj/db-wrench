@@ -1309,6 +1309,7 @@
         "enum": [
           "postgresql",
           "mysql",
+          "mariadb",
           "mongodb"
         ],
         "title": "DbType",

@@ -68,7 +68,7 @@ async def make_user(adm: Adm, name: str, **over: Any) -> dict[str, Any]:
 
 
 def host_q(adm: Adm) -> dict[str, str]:
-    return {"host": "%"} if adm.engine == "mysql" else {}
+    return {"host": "%"} if adm.engine in ("mysql", "mariadb") else {}
 
 
 # ------------------------------------------------------------------------ relational
@@ -127,7 +127,7 @@ async def test_database_level_grants_and_all_expansion(adm):
     ).json()
     db = next(g for g in entries if g["kind"] == "database")
     assert db["privileges"]  # expanded to the allowlist, never an engine-level ALL
-    if adm.engine == "mysql":
+    if adm.engine in ("mysql", "mariadb"):
         assert not [g for g in entries if g["kind"] == "global"]  # nothing global was handed out
     await adm.api.delete(adm.url(f"/principals/{name}"), json={"confirm": name}, params=q)
 

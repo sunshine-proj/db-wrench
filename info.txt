@@ -145,6 +145,35 @@ Cleanup: I removed the throwaway stack and its temporary files. docs/STATUS.md n
 
 
 
+=========================================================
+
+
+
+
+MariaDB is done and verified. The other five engines are not started, so Elasticsearch is only recorded in the plan so far. I stopped here because each remaining engine is about as much work as MariaDB, or more. The changes are uncommitted.
+
+MariaDB
+
+How it works: it's a separate adapter (adapters/mariadb.py) that subclasses the MySQL one. I probed live 10.11 and 11.4 containers first and overrode what differs:
+Statement timeout: max_statement_time in seconds replaces max_execution_time.
+Read-only variable: tx_read_only replaces transaction_read_only, which only exists from 11.x.
+Account locks: lock state comes from mysql.global_priv, and roles are excluded from the user list.
+JSON columns: they're LONGTEXT with a json_valid check, so they now report as json.
+Frontend: the connection form, ports, labels, SQL editor and privilege lists all know about MariaDB.
+Tests:
+The shared explorer, editor, admin, principals, query, import and adapter-safety suites now run against MariaDB too.
+746 integration tests pass on 11.4 and the MariaDB subset passes on 10.11.
+329 unit tests, 181 frontend tests, ruff, mypy, eslint and tsc are clean.
+Docs and CI: I added ADR-0017 and updated docs/STATUS.md (with a per-engine track table), PRD, README, AGENTS.md and the OpenAPI document. CI now runs MariaDB 10.11 and 11.4.
+A security finding to review. The existing forged-row-key test failed on MariaDB: the key "1 OR 1=1" deleted a real row. It isn't injection, because the value is parameterized. MariaDB silently turns that string into 1 in an integer comparison, while PostgreSQL and MySQL strict mode reject it. I fixed it in the shared editor code (relational/editing.py): key values and previous-value checks for numeric columns must now be numeric on every engine. I added unit tests for it.
+
+Remaining engines, in your order: SQL Server, Redis/Valkey, ClickHouse, SQLite, Elasticsearch/OpenSearch. Redis and Elasticsearch each need a new adapter family interface first (AGENTS.md §2.2), and each engine needs a read-only enforcement approach before any code.
+
+I'd do SQL Server next. Say if you want me to continue, or review and commit the MariaDB work first.
+
+
+
+=========================================================
 
 
 

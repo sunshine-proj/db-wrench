@@ -19,6 +19,7 @@ T = TypeVar("T")
 class DbType(StrEnum):
     POSTGRESQL = "postgresql"
     MYSQL = "mysql"
+    MARIADB = "mariadb"
     MONGODB = "mongodb"
 
 

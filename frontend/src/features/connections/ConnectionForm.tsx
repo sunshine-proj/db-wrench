@@ -141,6 +141,7 @@ export function ConnectionFormDialog({
                 >
                   <option value="postgresql">PostgreSQL</option>
                   <option value="mysql">MySQL</option>
+                  <option value="mariadb">MariaDB</option>
                   <option value="mongodb">MongoDB</option>
                 </Select>
               )}

@@ -57,9 +57,11 @@ class Adm:
         return f"connections/{self.cid}{path}"
 
 
-@pytest_asyncio.fixture(params=["postgresql", "mysql"])
-async def adm(request, admin, pg_managed, mysql_managed) -> Adm:
-    info = pg_managed if request.param == "postgresql" else mysql_managed
+@pytest_asyncio.fixture(params=["postgresql", "mysql", "mariadb"])
+async def adm(request, admin, pg_managed, mysql_managed, mariadb_managed) -> Adm:
+    info = {"postgresql": pg_managed, "mysql": mysql_managed, "mariadb": mariadb_managed}[
+        request.param
+    ]
     conn = await create_connection(admin, request.param, info, read_only=False)
     return Adm(admin, request.param, conn["id"], Srv(request.param, info))
 
@@ -122,7 +124,7 @@ async def test_drop_needs_the_typed_name_everywhere(adm):
 
 
 async def test_system_and_configured_databases_cannot_be_dropped(adm):
-    system = "postgres" if adm.engine == "postgresql" else "mysql"
+    system = "postgres" if adm.engine == "postgresql" else "mysql"  # also MariaDB
     r = await adm.api.delete(adm.url(f"/databases/{system}"), json={"confirm": system})
     assert r.status_code in (403, 404)  # protected (PG) or not even listed (MySQL)
     assert system in adm.srv.databases()
@@ -137,7 +139,7 @@ async def test_drop_unknown_database_is_404(adm):
 
 
 async def test_mysql_database_charset_option_is_allowlisted(adm):
-    if adm.engine != "mysql":
+    if adm.engine not in ("mysql", "mariadb"):
         pytest.skip("MySQL only")
     name = uniq()
     bad = await adm.api.post(adm.url("/databases"), {"name": name, "options": {"charset": "x;y"}})
@@ -153,7 +155,7 @@ async def test_mysql_database_charset_option_is_allowlisted(adm):
 async def test_schema_create_and_drop_postgres_only(adm):
     name = uniq("sch")
     r = await adm.api.post(adm.url("/databases/shop/schemas"), {"name": name})
-    if adm.engine == "mysql":
+    if adm.engine in ("mysql", "mariadb"):
         assert r.status_code == 422 and r.json()["code"] == "unsupported_capability"
         return
     assert r.status_code == 201, r.text

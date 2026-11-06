@@ -286,7 +286,9 @@ export function SqlWorkspace() {
           <LazyEditor
             value={sql}
             onChange={(v) => tabs.update({ text: v })}
-            language={connection.db_type === "mysql" ? "mysql" : "pgsql"}
+            language={
+              connection.db_type === "mysql" || connection.db_type === "mariadb" ? "mysql" : "pgsql"
+            }
             ariaLabel={t("workspace.editor")}
             onRun={() => void run()}
           />

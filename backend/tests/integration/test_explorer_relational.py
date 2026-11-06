@@ -51,9 +51,11 @@ class Rel:
         raise AssertionError("pagination did not terminate")
 
 
-@pytest_asyncio.fixture(params=["postgresql", "mysql"])
-async def rel(request, admin, pg_managed, mysql_managed) -> Rel:
-    info = pg_managed if request.param == "postgresql" else mysql_managed
+@pytest_asyncio.fixture(params=["postgresql", "mysql", "mariadb"])
+async def rel(request, admin, pg_managed, mysql_managed, mariadb_managed) -> Rel:
+    info = {"postgresql": pg_managed, "mysql": mysql_managed, "mariadb": mariadb_managed}[
+        request.param
+    ]
     conn = await create_connection(admin, request.param, info)
     return Rel(admin, request.param, conn["id"])
 
@@ -241,7 +243,7 @@ async def test_unknown_objects_are_404_and_never_interpolated(rel):
     base = f"connections/{rel.cid}/databases"
     assert (
         await rel.api.get(
-            f"{base}/nope/tables" if rel.engine == "mysql" else f"{base}/nope/schemas"
+            f"{base}/nope/tables" if rel.engine != "postgresql" else f"{base}/nope/schemas"
         )
     ).status_code == 404
     assert (await rel.api.get(f"{rel.table('nonexistent')}/structure")).status_code == 404

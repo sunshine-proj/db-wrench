@@ -25,7 +25,12 @@ import { CredentialsDialog } from "./CredentialsDialog";
 import { GrantsDialog } from "./GrantsDialog";
 import { ScopeGrantsDialog } from "./ScopeGrantsDialog";
 
-const ENGINE_LABEL = { postgresql: "PostgreSQL", mysql: "MySQL", mongodb: "MongoDB" } as const;
+const ENGINE_LABEL = {
+  postgresql: "PostgreSQL",
+  mysql: "MySQL",
+  mariadb: "MariaDB",
+  mongodb: "MongoDB",
+} as const;
 
 export function ConnectionsPage() {
   const qc = useQueryClient();

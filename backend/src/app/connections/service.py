@@ -50,7 +50,12 @@ from app.models import (
 from app.services.runtime import get_envelope, run_blocking
 
 NETWORK_POLICY_KEY = "network_policy"
-DEFAULT_PORTS = {DbType.POSTGRESQL: 5432, DbType.MYSQL: 3306, DbType.MONGODB: 27017}
+DEFAULT_PORTS = {
+    DbType.POSTGRESQL: 5432,
+    DbType.MYSQL: 3306,
+    DbType.MARIADB: 3306,
+    DbType.MONGODB: 27017,
+}
 
 
 # ------------------------------------------------------------------------- network policy

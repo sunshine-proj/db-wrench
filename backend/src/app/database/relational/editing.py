@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import re
 from abc import abstractmethod
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
@@ -159,22 +160,59 @@ class RelationalEditing:
         return cols, vals
 
     def _expected_sql(self, st: TableStructure, expected: dict[str, Any]) -> tuple[str, list[Any]]:
-        names = {c.name for c in st.columns}
+        by_name = {c.name: c for c in st.columns}
         parts: list[str] = []
         params: list[Any] = []
         for name, value in expected.items():
-            if name not in names:
+            if name not in by_name:
                 raise ValidationFailed(f"Unknown column: {name!r}")
             if isinstance(value, dict | list):
                 raise ValidationFailed("Expected values must be scalars.")
+            if not self._typed_scalar_ok(by_name[name], value):
+                raise ValidationFailed(f"Expected value for {name!r} is not a valid number.")
             parts.append(self.dialect.null_safe_eq(self.dialect.quote(name)))
             params.append(value)
         return (" AND " + " AND ".join(parts)) if parts else "", params
 
+    _INT_TYPES = frozenset(
+        {"tinyint", "smallint", "mediumint", "int", "integer", "bigint", "serial", "bigserial",
+         "smallserial", "int2", "int4", "int8"}
+    )  # fmt: skip
+    _NUM_TYPES = frozenset({"numeric", "decimal", "float", "double", "real", "float4", "float8"})
+    _INT_RE = re.compile(r"-?[0-9]{1,40}")
+    _NUM_RE = re.compile(r"-?[0-9]{1,40}(\.[0-9]{1,40})?([eE][+-]?[0-9]{1,4})?")
+
+    def _typed_scalar_ok(self, col: ColumnInfo | None, value: Any) -> bool:
+        """A value compared with a numeric column must itself be a number.
+
+        Engines differ in what they do with ``WHERE int_col = '1 OR 1=1'``: PostgreSQL and
+        MySQL strict mode raise, MariaDB silently coerces it to ``1`` (and would match a row).
+        Never rely on the engine: reject non-numeric text for numeric columns up front.
+        """
+        if col is None or value is None:
+            return True
+        base = re.split(r"[\s(]", col.data_type.strip().lower(), maxsplit=1)[0]
+        is_int = base in self._INT_TYPES
+        if not is_int and base not in self._NUM_TYPES:
+            return True
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, int | float):
+            return True
+        if not isinstance(value, str):
+            return False
+        pattern = self._INT_RE if is_int else self._NUM_RE
+        return bool(pattern.fullmatch(value))
+
+    def _check_key_values(self, st: TableStructure, vals: list[Any]) -> None:
+        by_name = {c.name: c for c in st.columns}
+        for name, v in zip(st.primary_key, vals, strict=True):
+            if v is None or not self._typed_scalar_ok(by_name.get(name), v):
+                raise ValidationFailed("Invalid row key.")
+
     def _pk_where(self, st: TableStructure, row_key: str) -> tuple[str, list[Any]]:
         vals = decode_row_key(row_key, len(st.primary_key))
-        if any(v is None for v in vals):
-            raise ValidationFailed("Invalid row key.")
+        self._check_key_values(st, vals)
         sql = " AND ".join(f"{self.dialect.quote(c)} = %s" for c in st.primary_key)
         return sql, vals
 
@@ -294,8 +332,7 @@ class RelationalEditing:
             params: list[Any] = []
             for key in sel.row_keys:
                 vals = decode_row_key(key, len(st.primary_key))
-                if any(v is None for v in vals):
-                    raise ValidationFailed("Invalid row key.")
+                self._check_key_values(st, vals)
                 parts.append("(" + " AND ".join(f"{d.quote(c)} = %s" for c in st.primary_key) + ")")
                 params.extend(vals)
             return ["(" + " OR ".join(parts) + ")"], params
