@@ -364,7 +364,7 @@ MySQL omits the `schemas/{schema}` segment (a database is the namespace).
 Editing and export live under the same table path: `POST .../rows`,
 `PATCH|DELETE .../rows/{row_key}` (previous values required; `DELETE` takes a JSON body),
 `POST .../rows/bulk/{preview|delete|update}`, `GET .../rows/{row_key}/cells/{column}` and
-`GET .../export?format=csv|json|ndjson`. Query workspaces: `POST /connections/{cid}/queries/execute`,
+`GET .../export?format=csv|json|ndjson|sql[&ddl=false]` (`sql` = table dump, relational engines). Query workspaces: `POST /connections/{cid}/queries/execute`,
 `POST .../queries/{operation_id}/cancel`, `POST .../queries/export`, `GET|DELETE .../queries/history`,
 `.../queries/saved`, and `POST .../mongo/queries/execute`.
 

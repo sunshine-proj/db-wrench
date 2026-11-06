@@ -99,6 +99,13 @@ order: MariaDB (done), Microsoft SQL Server (done), Redis/Valkey (done), ClickHo
   create / replace / delete with native `_seq_no` concurrency, create/delete index with typed
   confirmation, and a console that can only run validated `_search` bodies (no scripts, no lookups
   into other indices, bounded size).
+- **SQL table dump:** `GET .../tables/{table}/export?format=sql` streams a dump of one relational
+  table (PostgreSQL, MySQL, MariaDB, SQL Server, ClickHouse, SQLite): an optional best-effort
+  `CREATE TABLE` (`ddl=false` for data only) and batched multi-row `INSERT`s, respecting filters,
+  search, sort and column choice. Escaping is per dialect, masked columns are written as `NULL`,
+  generated columns are skipped, and hostile names cannot escape the header comments. Needs
+  `export.export` + `data.read`; audited like other exports; verified by dump-and-restore round trips
+  on all six engines.
 - **Frontend:** setup, login (+MFA, +SSO), account/security, dashboard, connections (+access dialog),
   explorer tree, grid and document browsers, users, roles, network policy, audit log; i18n layer;
   strict CSP; WCAG-minded markup.

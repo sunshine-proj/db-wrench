@@ -25,6 +25,7 @@ MEDIA = {
     "csv": "text/csv; charset=utf-8",
     "json": "application/json",
     "ndjson": "application/x-ndjson",
+    "sql": "application/sql; charset=utf-8",
 }
 
 

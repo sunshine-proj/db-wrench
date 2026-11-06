@@ -213,10 +213,56 @@ Do you want me to commit this, and if so as one commit or one per engine? I'd al
 
 
 
+Connections to localhost are blocked on purpose. The network policy (ADR-0007) treats loopback as an SSRF risk. If the backend could connect to 127.0.0.1, a user could point a connection at services that run next to DB Wrench, such as its own internal PostgreSQL, the metrics endpoint, or anything else bound to loopback. Those services often trust local callers. Link-local and cloud-metadata addresses (169.254.169.254) are always blocked for the same reason.
+
+In a container, localhost also means the backend container itself, not your machine, so it would rarely reach the database you meant anyway.
+
+How to reach a database on your host or network:
+
+Docker host: use host.docker.internal (the compose file maps it) and add its address to the allowlist under Network policy in the UI.
+Private networks: the default allowlist already covers 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 and fc00::/7. Add other ranges or hostnames in Network policy, or set DBW_NETWORK_ALLOW_CIDRS / DBW_NETWORK_ALLOW_HOSTS.
+Local development only: set DBW_NETWORK_ALLOW_LOOPBACK=true. The app refuses to start with this flag in production.
+Related: SQLite connections skip this check entirely because they open files, not network addresses. They are limited to the directory in DBW_SQLITE_ROOT.
+
+I'm going from the project docs and what I remember of the code, not from the error you saw. If you tell me which error message you got and what you were connecting to, I can point to the right fix.
 
 
 
 
+=========================================================
+
+
+
+
+A table can now be exported as a SQL dump. In the table browser's Export menu there is a new "SQL dump (.sql)" option.
+
+I tested it by dumping a tricky table from each of PostgreSQL, MySQL, MariaDB, SQL Server, SQLite and ClickHouse, restoring each dump into a fresh database, and comparing the rows. The values were quotes, backslashes, newlines, emoji, empty strings, NULLs and binary data, and all of them came back identical. A value of '; DROP TABLE …; -- was stored as data and not executed. The 21 round-trip tests pass and the unit suites are green. In the 688-test regression run covering the unit tests, the editor tests and the security tests, everything passed. Lint, types and the 198 frontend tests are clean. I haven't clicked through the new menu item in a browser.
+
+What it does: the dump streams an optional CREATE TABLE followed by batched multi-row INSERT statements. It respects the current filters, search, sort and column selection, and it needs the same permissions as other exports (export.export and data.read) and is audited like them.
+
+API: GET …/tables/{table}/export?format=sql. Add &ddl=false for data only.
+
+Safety:
+
+Escaping: text is escaped for each database's dialect, and table and column names are quoted.
+Header comments: table and column names are stripped of line breaks before going into -- comments, so a hostile name can't turn into executable SQL.
+Masked columns: they are written as NULL and listed in the header, so a dump can't leak values the user isn't allowed to see.
+Limits:
+
+Best-effort DDL: it's meant for restoring on the same database engine. It covers columns, NOT NULL, defaults and the primary key, but not indexes, foreign keys, triggers or sequences. The header says so; review it before running.
+Left out of the dump:
+Generated columns are skipped, since they can't be inserted.
+Defaults that call a sequence (nextval(…)) are left out.
+Not covered by the round trip: PostgreSQL array and JSON columns and the SQL Server identity-insert handling are covered only by unit tests, not by the restore comparison. The ClickHouse test table has no binary column.
+Not available for: MongoDB, Redis and Elasticsearch. Dumping the result of a custom query isn't supported either, because a dump needs a table name.
+The round-trip test caught one real bug: ClickHouse sends 64-bit integers and decimals as strings, so the dump first wrote '1' instead of 1. That's fixed, and the dump now checks the column type before writing a number unquoted.
+
+I also updated AGENTS.md, docs/STATUS.md, docs/operations.md and the OpenAPI document. The new code is in backend/src/app/editor/sqldump.py, and nothing is committed.
+
+
+
+
+=========================================================
 
 
 

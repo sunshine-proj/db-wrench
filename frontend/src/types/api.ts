@@ -389,7 +389,7 @@ export interface SensitiveMarker {
   field: string;
 }
 
-export type ExportFormat = "csv" | "json" | "ndjson";
+export type ExportFormat = "csv" | "json" | "ndjson" | "sql";
 
 // ---- Phase 4: query workspaces ---------------------------------------------------------
 

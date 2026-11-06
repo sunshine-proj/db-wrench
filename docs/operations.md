@@ -119,6 +119,12 @@ Run more than one backend replica behind the proxy for availability: the backend
 - **Bulk operations** act on at most `DBW_BULK_MAX_ROWS` (10,000) rows and only after a preview;
   the preview token is valid for 10 minutes and is bound to the user, the selection, the values
   and the previewed count. Exports stream up to `DBW_EXPORT_MAX_ROWS` (1,000,000) rows.
+- **SQL dumps:** the table export also offers *SQL dump (.sql)* (`format=sql`): `CREATE TABLE` plus
+  `INSERT` statements for the current filters, for restoring on the same engine. The DDL covers
+  columns, `NOT NULL`, defaults and the primary key only (no indexes, foreign keys, triggers or
+  sequences), skips generated columns, and sequence-backed defaults are left out; review it before
+  running. Masked columns are dumped as `NULL`. Values are large literals in a text file, so treat a
+  dump like the data it contains.
 - **Query limits:** default statement timeout `DBW_STATEMENT_TIMEOUT_S` (30), request maximum
   `DBW_MAX_STATEMENT_TIMEOUT_S` (300), per-user concurrency `DBW_CONCURRENT_QUERIES_PER_USER` (5).
   Operations are stored in the application database; if a replica dies mid-query its operation row

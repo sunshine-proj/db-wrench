@@ -181,4 +181,18 @@ describe("approvals and Phase 5 clients", () => {
       "/api/v1/audit/export?format=csv&action=auth",
     );
   });
+
+  it("builds a table SQL-dump URL that keeps the current filters", async () => {
+    const { editorApi } = await import("./api");
+    const url = editorApi.exportUrl(
+      { cid: "c", db: "d", schema: "s", table: "t" },
+      { limit: 100, filters: [{ column: "id", op: "lte", value: 3 }] },
+      "sql",
+    );
+    expect(url.startsWith("/api/v1/connections/c/databases/d/schemas/s/tables/t/export?")).toBe(
+      true,
+    );
+    expect(url).toContain("format=sql");
+    expect(decodeURIComponent(url)).toContain('"column":"id"');
+  });
 });

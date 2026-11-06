@@ -7867,10 +7867,23 @@
               "enum": [
                 "csv",
                 "json",
-                "ndjson"
+                "ndjson",
+                "sql"
               ],
               "title": "Format",
               "type": "string"
+            }
+          },
+          {
+            "description": "sql format: include CREATE TABLE",
+            "in": "query",
+            "name": "ddl",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "sql format: include CREATE TABLE",
+              "title": "Ddl",
+              "type": "boolean"
             }
           },
           {
@@ -9339,10 +9352,23 @@
               "enum": [
                 "csv",
                 "json",
-                "ndjson"
+                "ndjson",
+                "sql"
               ],
               "title": "Format",
               "type": "string"
+            }
+          },
+          {
+            "description": "sql format: include CREATE TABLE",
+            "in": "query",
+            "name": "ddl",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "sql format: include CREATE TABLE",
+              "title": "Ddl",
+              "type": "boolean"
             }
           },
           {

@@ -295,7 +295,7 @@ export function RowBrowser({
                 <Download className="size-4" aria-hidden /> {t("export.title")}
               </summary>
               <ul className="absolute right-0 z-20 mt-1 w-44 rounded-md border bg-card p-1 shadow-lg">
-                {(["csv", "json", "ndjson"] as const).map((f) => (
+                {(["csv", "json", "ndjson", "sql"] as const).map((f) => (
                   <li key={f}>
                     <a
                       className="block rounded px-2 py-1.5 text-sm hover:bg-muted"

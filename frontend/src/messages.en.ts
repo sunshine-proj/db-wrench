@@ -415,6 +415,7 @@ export const messages = {
   "export.csv": "CSV (.csv)",
   "export.json": "JSON (.json)",
   "export.ndjson": "JSON lines (.ndjson)",
+  "export.sql": "SQL dump (.sql)",
   "export.hint": "Exports respect the current filters and column choice.",
   "grid.masked": "Masked",
   "grid.maskedHint": "Sensitive value hidden for your role",

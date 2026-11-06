@@ -44,6 +44,7 @@ from app.editor.guards import (
     require_all,
     require_confirmation,
 )
+from app.editor.sqldump import SQL_ENGINES, SqlDump
 from app.errors import ConfirmationRequired, Forbidden, UnsupportedCapability, ValidationFailed
 from app.explorer import service as ex
 from app.governance import service as gov
@@ -430,7 +431,8 @@ def build_relational_router(dep: Callable[..., Target]) -> APIRouter:  # noqa: P
         db: DbSession,
         settings: AppSettings,
         ctx: CurrentAuth,
-        format: Annotated[Literal["csv", "json", "ndjson"], Query()] = "csv",  # noqa: A002
+        format: Annotated[Literal["csv", "json", "ndjson", "sql"], Query()] = "csv",  # noqa: A002
+        ddl: Annotated[bool, Query(description="sql format: include CREATE TABLE")] = True,
         sort: ex_JsonParam = None,
         filters: ex_JsonParam = None,
         columns: ex_JsonParam = None,
@@ -448,18 +450,34 @@ def build_relational_router(dep: Callable[..., Target]) -> APIRouter:  # noqa: P
             masked,
             "filter or sort by",
         )
+        structure = None
+        columns_arg = q.columns
+        if format == "sql":
+            engine = access.connection.db_type
+            if engine not in SQL_ENGINES:
+                raise UnsupportedCapability("SQL dumps are not available for this engine.")
+            structure = await run_blocking(adapter.get_structure, t.database, t.schema, t.table)
+            # Generated columns cannot be inserted: leave them out of the dump.
+            generated = {c.name for c in structure.columns if c.is_generated}
+            wanted = columns_arg or structure.column_names()
+            columns_arg = [c for c in wanted if c not in generated]
         meta, batches = await run_blocking(
             adapter.export_rows, t.database, t.schema, t.table,
-            columns=q.columns, filters=q.filters, search=q.search,
+            columns=columns_arg, filters=q.filters, search=q.search,
             search_columns=q.search_columns, sort=q.sort,
         )  # fmt: skip
         names = [c["name"] for c in meta]
+        formatter = (
+            SqlDump(access.connection.db_type, t.schema, structure, names, masked, ddl)
+            if structure is not None
+            else make_row_formatter(format, names, masked)
+        )
         return stream_export(
             ctx=ctx,
             cid=t.cid,
             fmt=format,
             filename=t.table,
-            formatter=make_row_formatter(format, names, masked),
+            formatter=formatter,
             batches=batches,
             target=t.audit_target(),
             detail={"filters": ex.filter_summary(q), "masked": sorted(set(names) & masked)},
