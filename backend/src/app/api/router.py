@@ -13,6 +13,8 @@ from app.api import (
     importing,
     principals,
     query,
+    redis,
+    search,
     sso,
     tokens,
     users,
@@ -40,3 +42,5 @@ api_router.include_router(sso.router)
 api_router.include_router(sso.settings_router)
 api_router.include_router(principals.router)
 api_router.include_router(principals.mongo)
+api_router.include_router(redis.router)
+api_router.include_router(search.router)

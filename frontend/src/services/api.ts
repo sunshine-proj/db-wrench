@@ -6,6 +6,15 @@
  */
 import type {
   GrantTarget,
+  SearchDoc,
+  SearchIndex,
+  SearchIndexDetail,
+  SearchPage,
+  SearchResult,
+  RedisCommandResult,
+  RedisDatabase,
+  RedisKeyDetail,
+  RedisKeyPage,
   MongoRole,
   MongoRoleRef,
   MongoUser,
@@ -775,4 +784,90 @@ export const mongoPrincipalsApi = {
         body: { privileges, confirm: role },
       },
     ),
+};
+
+// ------------------------------------------------------------------ Redis (key-value family)
+
+const redisBase = (cid: string) => `connections/${seg(cid)}/redis`;
+
+export const redisApi = {
+  databases: (cid: string) => get<RedisDatabase[]>(`${redisBase(cid)}/databases`),
+  keys: (
+    cid: string,
+    db: string,
+    p: { pattern?: string; type?: string; cursor?: string | null; limit?: number },
+  ) =>
+    get<RedisKeyPage>(`${redisBase(cid)}/databases/${seg(db)}/keys`, {
+      pattern: p.pattern,
+      type: p.type,
+      cursor: p.cursor ?? undefined,
+      limit: p.limit,
+    }),
+  key: (cid: string, db: string, key: string, p: { cursor?: string | null; full?: boolean } = {}) =>
+    get<RedisKeyDetail>(`${redisBase(cid)}/databases/${seg(db)}/keys/${seg(key)}`, {
+      cursor: p.cursor ?? undefined,
+      full: p.full ? true : undefined,
+    }),
+  create: (
+    cid: string,
+    db: string,
+    body: { name: string; type: string; value: unknown; ttl_ms?: number },
+  ) => post<RedisKeyDetail>(`${redisBase(cid)}/databases/${seg(db)}/keys`, body),
+  replace: (
+    cid: string,
+    db: string,
+    key: string,
+    body: { type: string; value: unknown; version: string; keep_ttl?: boolean },
+  ) => put<RedisKeyDetail>(`${redisBase(cid)}/databases/${seg(db)}/keys/${seg(key)}`, body),
+  setTtl: (cid: string, db: string, key: string, ttl_ms: number | null) =>
+    put<void>(`${redisBase(cid)}/databases/${seg(db)}/keys/${seg(key)}/ttl`, { ttl_ms }),
+  remove: (cid: string, db: string, key: string, body: { version?: string; confirm?: string }) =>
+    del(`${redisBase(cid)}/databases/${seg(db)}/keys/${seg(key)}`, body),
+  execute: (
+    cid: string,
+    body: { database: string; command: string; confirm_destructive?: boolean; confirm?: string },
+  ) => post<RedisCommandResult>(`${redisBase(cid)}/commands/execute`, body),
+};
+
+// ------------------------------------------------------------------ Elasticsearch (search family)
+
+const searchBase = (cid: string) => `connections/${seg(cid)}/search`;
+
+export const searchApi = {
+  indices: (cid: string) => get<SearchIndex[]>(`${searchBase(cid)}/indices`),
+  index: (cid: string, index: string) =>
+    get<SearchIndexDetail>(`${searchBase(cid)}/indices/${seg(index)}`),
+  createIndex: (
+    cid: string,
+    body: { name: string; shards: number; replicas: number; mappings?: unknown },
+  ) => post<{ name: string }>(`${searchBase(cid)}/indices`, body),
+  deleteIndex: (cid: string, index: string) =>
+    del(`${searchBase(cid)}/indices/${seg(index)}`, { confirm: index }),
+  documents: (
+    cid: string,
+    index: string,
+    p: { q?: string; sort?: string; cursor?: string | null; limit?: number },
+  ) =>
+    get<SearchPage>(`${searchBase(cid)}/indices/${seg(index)}/documents`, {
+      q: p.q,
+      sort: p.sort,
+      cursor: p.cursor ?? undefined,
+      limit: p.limit,
+    }),
+  createDoc: (cid: string, index: string, body: { id?: string; source: unknown }) =>
+    post<SearchDoc>(`${searchBase(cid)}/indices/${seg(index)}/documents`, body),
+  replaceDoc: (
+    cid: string,
+    index: string,
+    key: string,
+    body: { source: unknown; seq_no: number; primary_term: number },
+  ) => put<SearchDoc>(`${searchBase(cid)}/indices/${seg(index)}/documents/${seg(key)}`, body),
+  deleteDoc: (
+    cid: string,
+    index: string,
+    key: string,
+    body: { seq_no?: number | null; primary_term?: number | null; confirm?: string },
+  ) => del(`${searchBase(cid)}/indices/${seg(index)}/documents/${seg(key)}`, body),
+  execute: (cid: string, body: { index: string; body: unknown; timeout_s?: number }) =>
+    post<SearchResult>(`${searchBase(cid)}/execute`, body),
 };

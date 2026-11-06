@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     network_allow_hosts: list[str] = Field(default_factory=list)
     network_allow_loopback: bool = False  # development / test only
 
+    # SQLite: connections may only open files below this directory (unset = SQLite disabled).
+    sqlite_root: str | None = None
+
     # Execution limits (AGENTS.md section 6)
     statement_timeout_s: int = 30
     default_page_size: int = 100
@@ -103,6 +106,10 @@ class Settings(BaseSettings):
                 raise ValueError("DBW_COOKIE_SECURE must be true in production")
             if self.network_allow_loopback:
                 raise ValueError("DBW_NETWORK_ALLOW_LOOPBACK is not permitted in production")
+        if self.sqlite_root:
+            root = Path(self.sqlite_root)
+            if not root.is_absolute() or not root.is_dir():
+                raise ValueError("DBW_SQLITE_ROOT must be an existing absolute directory")
         return self
 
     def parsed_keys(self) -> dict[str, bytes]:

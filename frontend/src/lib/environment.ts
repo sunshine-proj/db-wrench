@@ -16,5 +16,10 @@ export const DEFAULT_PORT = {
   postgresql: 5432,
   mysql: 3306,
   mariadb: 3306,
+  mssql: 1433,
+  clickhouse: 8123,
+  sqlite: 1,
+  redis: 6379,
+  elasticsearch: 9200,
   mongodb: 27017,
 } as const;

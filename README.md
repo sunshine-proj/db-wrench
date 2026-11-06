@@ -30,6 +30,11 @@ Initial database support:
 | PostgreSQL | 14 – 17        | Primary  | SQL               |
 | MySQL      | 8.0, 8.4       | Primary  | SQL               |
 | MariaDB    | 10.11, 11.4    | Primary  | SQL               |
+| SQL Server | 2019, 2022     | Primary  | T-SQL             |
+| Redis      | 6.2, 7.4, Valkey 8 | Primary | Allowlisted commands |
+| ClickHouse | 24.3, 24.8, 25.3 | Primary | SQL (read and append) |
+| SQLite     | 3.35+          | Primary  | SQL               |
+| Elasticsearch | 7.17, 8.15, OpenSearch 2.17 | Primary | Search DSL (validated) |
 | MongoDB    | 6.0, 7.0, 8.0  | Primary  | MongoDB Query API |
 
 The architecture must allow additional database engines to be introduced through

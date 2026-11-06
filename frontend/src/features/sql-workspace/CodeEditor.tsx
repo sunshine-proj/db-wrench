@@ -4,7 +4,7 @@ import { monaco } from "./monaco";
 export interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
-  language: "pgsql" | "mysql" | "json";
+  language: "pgsql" | "mysql" | "sql" | "redis" | "json";
   ariaLabel: string;
   /** Ctrl/Cmd+Enter */
   onRun?: () => void;

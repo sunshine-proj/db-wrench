@@ -47,6 +47,25 @@ const MY_DB_PRIVS = [
   "ALTER ROUTINE",
   "EVENT",
 ];
+const MS_OBJ_PRIVS = [
+  "SELECT",
+  "INSERT",
+  "UPDATE",
+  "DELETE",
+  "REFERENCES",
+  "VIEW DEFINITION",
+  "ALTER",
+];
+const MS_SCHEMA_PRIVS = ["SELECT", "INSERT", "UPDATE", "DELETE", "EXECUTE", "REFERENCES"];
+const MS_DB_PRIVS = [
+  ...MS_OBJ_PRIVS,
+  "EXECUTE",
+  "CREATE TABLE",
+  "CREATE VIEW",
+  "CREATE PROCEDURE",
+  "CREATE FUNCTION",
+  "CONNECT",
+];
 const MONGO_ACTIONS = [
   "find",
   "insert",
@@ -65,6 +84,9 @@ const MONGO_BUILTIN = ["read", "readWrite", "dbAdmin", "dbOwner", "userAdmin"];
 
 /** Privileges offered for an object kind on an engine (the server enforces the same allowlists). */
 export function privilegesFor(engine: string, kind: GrantTarget["kind"]): string[] {
+  if (engine === "mssql") {
+    return kind === "database" ? MS_DB_PRIVS : kind === "schema" ? MS_SCHEMA_PRIVS : MS_OBJ_PRIVS;
+  }
   if (engine === "mysql" || engine === "mariadb")
     return kind === "database" ? MY_DB_PRIVS : MY_TABLE_PRIVS;
   if (kind === "database") return DB_PRIVS;
@@ -94,6 +116,7 @@ function Modal({
 
 function CreateDialog({ c, onClose }: { c: Connection; onClose: () => void }) {
   const pg = c.db_type === "postgresql";
+  const mssql = c.db_type === "mssql";
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [host, setHost] = useState("%");
@@ -108,8 +131,8 @@ function CreateDialog({ c, onClose }: { c: Connection; onClose: () => void }) {
       principalsApi.create(c.id, {
         name,
         ...(password ? { password } : {}),
-        ...(pg ? {} : { host }),
-        options: pg ? { login, createdb, createrole } : { require_ssl: ssl },
+        ...(pg || mssql ? {} : { host }),
+        options: pg ? { login, createdb, createrole } : mssql ? {} : { require_ssl: ssl },
       }),
     onClose,
   );
@@ -125,7 +148,7 @@ function CreateDialog({ c, onClose }: { c: Connection; onClose: () => void }) {
         <Field label={t("access.user")}>
           {(p) => <Input {...p} required value={name} onChange={(e) => setName(e.target.value)} />}
         </Field>
-        {!pg && (
+        {!pg && !mssql && (
           <Field label={t("access.host")}>
             {(p) => <Input {...p} value={host} onChange={(e) => setHost(e.target.value)} />}
           </Field>
@@ -228,10 +251,12 @@ function PasswordDialog({ c, p, onClose }: { c: Connection; p: Principal; onClos
 
 function GrantsDialog({ c, p, onClose }: { c: Connection; p: Principal; onClose: () => void }) {
   const pg = c.db_type === "postgresql";
+  const mssql = c.db_type === "mssql";
+  const hasSchemas = pg || mssql;
   const qc = useQueryClient();
   const [database, setDatabase] = useState(c.database ?? "");
   const [kind, setKind] = useState<GrantTarget["kind"]>("table");
-  const [schema, setSchema] = useState(pg ? "public" : "");
+  const [schema, setSchema] = useState(pg ? "public" : mssql ? "dbo" : "");
   const [object, setObject] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [confirm, setConfirm] = useState("");
@@ -243,7 +268,7 @@ function GrantsDialog({ c, p, onClose }: { c: Connection; p: Principal; onClose:
   const target = (): GrantTarget => ({
     kind,
     database,
-    ...(pg && kind !== "database" ? { schema } : {}),
+    ...(hasSchemas && kind !== "database" ? { schema } : {}),
     ...(kind === "table" ? { object } : {}),
   });
   const grant = useAdminCall(
@@ -290,7 +315,9 @@ function GrantsDialog({ c, p, onClose }: { c: Connection; p: Principal; onClose:
   const options = privilegesFor(c.db_type, kind);
   const kinds: GrantTarget["kind"][] = pg
     ? ["database", "schema", "table", "all_tables"]
-    : ["database", "table"];
+    : mssql
+      ? ["database", "schema", "table"]
+      : ["database", "table"];
   return (
     <Modal title={t("access.grants", { name: p.name })} onClose={onClose}>
       <div className="space-y-4">
@@ -372,7 +399,7 @@ function GrantsDialog({ c, p, onClose }: { c: Connection; p: Principal; onClose:
                   </Select>
                 )}
               </Field>
-              {pg && kind !== "database" && (
+              {hasSchemas && kind !== "database" && (
                 <Field label={t("scope.schema")}>
                   {(f) => (
                     <Input {...f} value={schema} onChange={(e) => setSchema(e.target.value)} />

@@ -363,7 +363,7 @@ class RelationalEditing:
         sample_sql = f"SELECT {', '.join(d.quote(c) for c in cols)} FROM {d.qualified(ns, st.name)}"  # noqa: S608
         if where:
             sample_sql += " WHERE " + " AND ".join(where)
-        sample_sql += f" LIMIT {PREVIEW_ROWS}"
+        sample_sql += d.limit_sql(ordered=False, limit=PREVIEW_ROWS)
         _, rows = self._query(database, sample_sql, params)
         return BulkPreview(count, cols, [[to_json_value(v, 200) for v in r] for r in rows])
 

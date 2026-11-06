@@ -61,6 +61,8 @@ describe("privilegesFor", () => {
     expect(privilegesFor("postgresql", "database")).toEqual(["CONNECT", "CREATE", "TEMPORARY"]);
     expect(privilegesFor("postgresql", "schema")).toEqual(["USAGE", "CREATE"]);
     expect(privilegesFor("postgresql", "table")).toContain("TRUNCATE");
+    expect(privilegesFor("mssql", "table")).not.toContain("EXECUTE");
+    expect(privilegesFor("mssql", "schema")).toContain("EXECUTE");
     expect(privilegesFor("mariadb", "table")).toEqual(privilegesFor("mysql", "table"));
     expect(privilegesFor("mysql", "table")).not.toContain("EXECUTE");
     expect(privilegesFor("mysql", "database")).toContain("EXECUTE");

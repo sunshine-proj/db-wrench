@@ -58,6 +58,33 @@ describe("ConnectionFormDialog", () => {
     expect(screen.getByLabelText("Authentication database")).toBeInTheDocument();
   });
 
+  it("asks for a file, not a network destination, for SQLite", async () => {
+    const api = mockApi({
+      "POST connections": () => ({ ...existing }),
+      "GET connections": () => [],
+    });
+    const onOpenChange = vi.fn();
+    renderWithProviders(<ConnectionFormDialog open onOpenChange={onOpenChange} />);
+    await userEvent.selectOptions(screen.getByLabelText("Engine"), "sqlite");
+    expect(screen.queryByLabelText("Host")).toBeNull();
+    expect(screen.queryByLabelText("Port")).toBeNull();
+    expect(screen.queryByLabelText("Password")).toBeNull();
+    await userEvent.type(screen.getByLabelText("Name"), "Local file");
+    await userEvent.type(screen.getByLabelText("Database file"), "data/app.db");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    const body = api.calls.find((c) => c.method === "POST")?.body as Record<string, unknown>;
+    expect(body).toMatchObject({
+      db_type: "sqlite",
+      database: "data/app.db",
+      host: "local-file",
+      port: 1,
+      username: "",
+      password: "",
+      tls_mode: "disable",
+    });
+  });
+
   it("creates a connection with the entered values", async () => {
     const api = mockApi({
       "POST connections": () => ({ ...existing }),

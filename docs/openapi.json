@@ -442,6 +442,45 @@
         "title": "ColumnInfo",
         "type": "object"
       },
+      "CommandBody": {
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "maxLength": 65536,
+            "minLength": 1,
+            "title": "Command",
+            "type": "string"
+          },
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "confirm_destructive": {
+            "default": false,
+            "title": "Confirm Destructive",
+            "type": "boolean"
+          },
+          "database": {
+            "maxLength": 3,
+            "title": "Database",
+            "type": "string"
+          }
+        },
+        "required": [
+          "database",
+          "command"
+        ],
+        "title": "CommandBody",
+        "type": "object"
+      },
       "ConnectionCreate": {
         "additionalProperties": false,
         "properties": {
@@ -1310,7 +1349,12 @@
           "postgresql",
           "mysql",
           "mariadb",
-          "mongodb"
+          "mssql",
+          "clickhouse",
+          "sqlite",
+          "mongodb",
+          "redis",
+          "elasticsearch"
         ],
         "title": "DbType",
         "type": "string"
@@ -1529,31 +1573,31 @@
         "title": "DocCommit",
         "type": "object"
       },
-      "DocDelete": {
+      "DocCreate": {
         "additionalProperties": false,
         "properties": {
-          "confirm": {
+          "id": {
             "anyOf": [
               {
+                "maxLength": 512,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Confirm"
+            "title": "Id"
           },
-          "original": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Original"
+          "source": {
+            "additionalProperties": true,
+            "title": "Source",
+            "type": "object"
           }
         },
-        "title": "DocDelete",
+        "required": [
+          "source"
+        ],
+        "title": "DocCreate",
         "type": "object"
       },
       "DocImport": {
@@ -1684,23 +1728,6 @@
           "message"
         ],
         "title": "DocProblem",
-        "type": "object"
-      },
-      "DocReplace": {
-        "additionalProperties": false,
-        "properties": {
-          "document": {
-            "title": "Document"
-          },
-          "original": {
-            "title": "Original"
-          }
-        },
-        "required": [
-          "original",
-          "document"
-        ],
-        "title": "DocReplace",
         "type": "object"
       },
       "DropBody": {
@@ -2262,6 +2289,67 @@
         "title": "IndexBody",
         "type": "object"
       },
+      "IndexCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "mappings": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mappings"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "replicas": {
+            "default": 1,
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Replicas",
+            "type": "integer"
+          },
+          "shards": {
+            "default": 1,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Shards",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "IndexCreate",
+        "type": "object"
+      },
+      "IndexDelete": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          }
+        },
+        "title": "IndexDelete",
+        "type": "object"
+      },
       "IndexInfo": {
         "properties": {
           "columns": {
@@ -2325,6 +2413,132 @@
           }
         },
         "title": "InsertBody",
+        "type": "object"
+      },
+      "KeyCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "ttl_ms": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 315360000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Ms"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "hash",
+              "list",
+              "set",
+              "zset"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "value"
+        ],
+        "title": "KeyCreate",
+        "type": "object"
+      },
+      "KeyDelete": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "title": "KeyDelete",
+        "type": "object"
+      },
+      "KeyReplace": {
+        "additionalProperties": false,
+        "properties": {
+          "keep_ttl": {
+            "default": true,
+            "title": "Keep Ttl",
+            "type": "boolean"
+          },
+          "ttl_ms": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 315360000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Ms"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "hash",
+              "list",
+              "set",
+              "zset"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          },
+          "version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value",
+          "version"
+        ],
+        "title": "KeyReplace",
         "type": "object"
       },
       "LoginRequest": {
@@ -4317,6 +4531,41 @@
         "title": "ScopeGrantsUpdate",
         "type": "object"
       },
+      "SearchBody": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": true,
+            "title": "Body",
+            "type": "object"
+          },
+          "index": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Index",
+            "type": "string"
+          },
+          "timeout_s": {
+            "anyOf": [
+              {
+                "maximum": 300.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout S"
+          }
+        },
+        "required": [
+          "index",
+          "body"
+        ],
+        "title": "SearchBody",
+        "type": "object"
+      },
       "SelectorBody": {
         "additionalProperties": false,
         "properties": {
@@ -5050,6 +5299,26 @@
         "title": "TokenScopes",
         "type": "object"
       },
+      "TtlBody": {
+        "additionalProperties": false,
+        "properties": {
+          "ttl_ms": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 315360000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Ms"
+          }
+        },
+        "title": "TtlBody",
+        "type": "object"
+      },
       "UpdateBody": {
         "additionalProperties": false,
         "properties": {
@@ -5293,6 +5562,50 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "app__api__editor__DocDelete": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "original": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original"
+          }
+        },
+        "title": "DocDelete",
+        "type": "object"
+      },
+      "app__api__editor__DocReplace": {
+        "additionalProperties": false,
+        "properties": {
+          "document": {
+            "title": "Document"
+          },
+          "original": {
+            "title": "Original"
+          }
+        },
+        "required": [
+          "original",
+          "document"
+        ],
+        "title": "DocReplace",
+        "type": "object"
+      },
       "app__api__principals__GrantOut": {
         "properties": {
           "database": {
@@ -5383,6 +5696,76 @@
           "role"
         ],
         "title": "GrantOut",
+        "type": "object"
+      },
+      "app__api__search__DocDelete": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "primary_term": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Term"
+          },
+          "seq_no": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seq No"
+          }
+        },
+        "title": "DocDelete",
+        "type": "object"
+      },
+      "app__api__search__DocReplace": {
+        "additionalProperties": false,
+        "properties": {
+          "primary_term": {
+            "minimum": 1.0,
+            "title": "Primary Term",
+            "type": "integer"
+          },
+          "seq_no": {
+            "minimum": 0.0,
+            "title": "Seq No",
+            "type": "integer"
+          },
+          "source": {
+            "additionalProperties": true,
+            "title": "Source",
+            "type": "object"
+          }
+        },
+        "required": [
+          "source",
+          "seq_no",
+          "primary_term"
+        ],
+        "title": "DocReplace",
         "type": "object"
       }
     }
@@ -11285,7 +11668,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DocDelete"
+                "$ref": "#/components/schemas/app__api__editor__DocDelete"
               }
             }
           },
@@ -11356,7 +11739,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DocReplace"
+                "$ref": "#/components/schemas/app__api__editor__DocReplace"
               }
             }
           },
@@ -14057,6 +14440,572 @@
         ]
       }
     },
+    "/api/v1/connections/{cid}/redis/commands/execute": {
+      "post": {
+        "operationId": "redis_execute__post__api_v1_connections_cid_redis_commands_execute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Redis Execute  Post  Api V1 Connections Cid Redis Commands Execute"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redis Execute",
+        "tags": [
+          "redis"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/redis/databases": {
+      "get": {
+        "operationId": "redis_databases__get__api_v1_connections_cid_redis_databases",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Redis Databases  Get  Api V1 Connections Cid Redis Databases"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redis Databases",
+        "tags": [
+          "redis"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/redis/databases/{database}/keys": {
+      "get": {
+        "operationId": "redis_keys__get__api_v1_connections_cid_redis_databases_database_keys",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pattern",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pattern"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Redis Keys  Get  Api V1 Connections Cid Redis Databases Database Keys"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redis Keys",
+        "tags": [
+          "redis"
+        ]
+      },
+      "post": {
+        "operationId": "redis_create_key__post__api_v1_connections_cid_redis_databases_database_keys",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Redis Create Key  Post  Api V1 Connections Cid Redis Databases Database Keys"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redis Create Key",
+        "tags": [
+          "redis"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/redis/databases/{database}/keys/{key}": {
+      "delete": {
+        "operationId": "redis_delete_key__delete__api_v1_connections_cid_redis_databases_database_keys_key",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redis Delete Key",
+        "tags": [
+          "redis"
+        ]
+      },
+      "get": {
+        "operationId": "redis_key__get__api_v1_connections_cid_redis_databases_database_keys_key",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "full",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Full",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Redis Key  Get  Api V1 Connections Cid Redis Databases Database Keys Key"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redis Key",
+        "tags": [
+          "redis"
+        ]
+      },
+      "put": {
+        "operationId": "redis_replace_key__put__api_v1_connections_cid_redis_databases_database_keys_key",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyReplace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Redis Replace Key  Put  Api V1 Connections Cid Redis Databases Database Keys Key"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redis Replace Key",
+        "tags": [
+          "redis"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/redis/databases/{database}/keys/{key}/ttl": {
+      "put": {
+        "operationId": "redis_set_ttl__put__api_v1_connections_cid_redis_databases_database_keys_key_ttl",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "database",
+            "required": true,
+            "schema": {
+              "title": "Database",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TtlBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redis Set Ttl",
+        "tags": [
+          "redis"
+        ]
+      }
+    },
     "/api/v1/connections/{cid}/scope-grants": {
       "get": {
         "operationId": "get_scope_grants__get__api_v1_connections_cid_scope-grants",
@@ -14156,6 +15105,627 @@
         "summary": "Put Scope Grants",
         "tags": [
           "connections"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/search/execute": {
+      "post": {
+        "operationId": "execute__post__api_v1_connections_cid_search_execute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Execute  Post  Api V1 Connections Cid Search Execute"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Execute",
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/search/indices": {
+      "get": {
+        "operationId": "list_indices__get__api_v1_connections_cid_search_indices",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response List Indices  Get  Api V1 Connections Cid Search Indices"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Indices",
+        "tags": [
+          "search"
+        ]
+      },
+      "post": {
+        "operationId": "create_index__post__api_v1_connections_cid_search_indices",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IndexCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Create Index  Post  Api V1 Connections Cid Search Indices"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Index",
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/search/indices/{index}": {
+      "delete": {
+        "operationId": "delete_index__delete__api_v1_connections_cid_search_indices_index",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IndexDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Index",
+        "tags": [
+          "search"
+        ]
+      },
+      "get": {
+        "operationId": "get_index__get__api_v1_connections_cid_search_indices_index",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Index  Get  Api V1 Connections Cid Search Indices Index"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Index",
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/search/indices/{index}/documents": {
+      "get": {
+        "operationId": "search_documents__get__api_v1_connections_cid_search_indices_index_documents",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 1000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "description": "field:asc|desc,...",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 300,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "field:asc|desc,...",
+              "title": "Sort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 12,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Search Documents  Get  Api V1 Connections Cid Search Indices Index Documents"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Documents",
+        "tags": [
+          "search"
+        ]
+      },
+      "post": {
+        "operationId": "create_document__post__api_v1_connections_cid_search_indices_index_documents",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Create Document  Post  Api V1 Connections Cid Search Indices Index Documents"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Document",
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/api/v1/connections/{cid}/search/indices/{index}/documents/{key}": {
+      "delete": {
+        "operationId": "delete_document__delete__api_v1_connections_cid_search_indices_index_documents_key",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__search__DocDelete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Document",
+        "tags": [
+          "search"
+        ]
+      },
+      "get": {
+        "operationId": "get_document__get__api_v1_connections_cid_search_indices_index_documents_key",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Document  Get  Api V1 Connections Cid Search Indices Index Documents Key"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Document",
+        "tags": [
+          "search"
+        ]
+      },
+      "put": {
+        "operationId": "replace_document__put__api_v1_connections_cid_search_indices_index_documents_key",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__search__DocReplace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Replace Document  Put  Api V1 Connections Cid Search Indices Index Documents Key"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Document",
+        "tags": [
+          "search"
         ]
       }
     },

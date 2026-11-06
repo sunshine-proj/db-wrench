@@ -48,6 +48,19 @@ network and use the container name.
 TLS to managed databases: `disable`, `require` (encrypted, unverified), `verify-ca`, `verify-full`
 (see ADR-0007 for the driver-specific limits).
 
+## SQLite files
+
+SQLite connections are disabled by default. Set `DBW_SQLITE_ROOT` to an absolute directory that
+the backend container can read (mount it as a volume; read-only unless connections must write) to
+enable them. A connection names a database file *relative to that directory*; paths that escape
+it (including through symlinks) and files that are not SQLite databases are refused, and DB Wrench
+never creates database files. Keep the directory writable only by trusted users: the check and the
+open are not atomic. See ADR-0021.
+
+Example (Compose override): add `DBW_SQLITE_ROOT=/data/sqlite` to `.env` and mount the directory
+into the backend service with `volumes: ["./sqlite-data:/data/sqlite:ro"]` (drop `:ro` only if
+connections must be writable; the directory then also needs to be writable for the journal).
+
 ## Secrets and encryption keys
 
 - `DBW_ENCRYPTION_KEYS` holds key-encryption keys (`id:base64`, 32 bytes each). **Back it up

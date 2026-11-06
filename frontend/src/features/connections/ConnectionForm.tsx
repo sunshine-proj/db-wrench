@@ -71,6 +71,11 @@ export function toInput(f: FormState, editing: boolean): Partial<ConnectionInput
     credential_model: f.credential_model,
     options,
   };
+  if (f.db_type === "sqlite") {
+    // A local file: no network destination, credentials or TLS (the server fixes these).
+    Object.assign(body, { host: "local-file", port: 1, username: "", tls_mode: "disable" });
+    if (!editing) body.password = "";
+  }
   if (f.tls_ca.trim()) body.tls_ca = f.tls_ca.trim();
   // On edit a blank password means "keep the stored one"; it is never sent back to us.
   if (f.password || !editing) body.password = f.password;
@@ -91,6 +96,7 @@ export function ConnectionFormDialog({
   const editing = connection !== undefined;
   const [f, setF] = useState<FormState>(() => initial(connection));
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((s) => ({ ...s, [k]: v }));
+  const file = f.db_type === "sqlite";
 
   const save = useMutation({
     mutationFn: () => {
@@ -142,6 +148,11 @@ export function ConnectionFormDialog({
                   <option value="postgresql">PostgreSQL</option>
                   <option value="mysql">MySQL</option>
                   <option value="mariadb">MariaDB</option>
+                  <option value="mssql">SQL Server</option>
+                  <option value="clickhouse">ClickHouse</option>
+                  <option value="sqlite">SQLite (file)</option>
+                  <option value="redis">Redis / Valkey</option>
+                  <option value="elasticsearch">Elasticsearch / OpenSearch</option>
                   <option value="mongodb">MongoDB</option>
                 </Select>
               )}
@@ -161,33 +172,41 @@ export function ConnectionFormDialog({
                 </Select>
               )}
             </Field>
-            <Field label={t("connections.host")}>
+            {!file && (
+              <>
+                <Field label={t("connections.host")}>
+                  {(p) => (
+                    <Input
+                      {...p}
+                      required
+                      value={f.host}
+                      onChange={(e) => set("host", e.target.value)}
+                    />
+                  )}
+                </Field>
+                <Field label={t("connections.port")}>
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="number"
+                      min={1}
+                      max={65535}
+                      required
+                      value={f.port}
+                      onChange={(e) => set("port", e.target.value)}
+                    />
+                  )}
+                </Field>
+              </>
+            )}
+            <Field
+              label={file ? t("connections.sqliteFile") : t("connections.database")}
+              hint={file ? t("connections.sqliteFileHint") : t("connections.databaseHint")}
+            >
               {(p) => (
                 <Input
                   {...p}
-                  required
-                  value={f.host}
-                  onChange={(e) => set("host", e.target.value)}
-                />
-              )}
-            </Field>
-            <Field label={t("connections.port")}>
-              {(p) => (
-                <Input
-                  {...p}
-                  type="number"
-                  min={1}
-                  max={65535}
-                  required
-                  value={f.port}
-                  onChange={(e) => set("port", e.target.value)}
-                />
-              )}
-            </Field>
-            <Field label={t("connections.database")} hint={t("connections.databaseHint")}>
-              {(p) => (
-                <Input
-                  {...p}
+                  required={file}
                   value={f.database}
                   onChange={(e) => set("database", e.target.value)}
                 />
@@ -205,45 +224,49 @@ export function ConnectionFormDialog({
                 )}
               </Field>
             )}
-            <Field label={t("connections.username")}>
-              {(p) => (
-                <Input
-                  {...p}
-                  autoComplete="off"
-                  value={f.username}
-                  onChange={(e) => set("username", e.target.value)}
-                />
-              )}
-            </Field>
-            <Field
-              label={t("connections.password")}
-              hint={editing ? t("connections.passwordKeep") : undefined}
-            >
-              {(p) => (
-                <Input
-                  {...p}
-                  type="password"
-                  autoComplete="new-password"
-                  value={f.password}
-                  onChange={(e) => set("password", e.target.value)}
-                />
-              )}
-            </Field>
-            <Field label={t("connections.tls")}>
-              {(p) => (
-                <Select
-                  {...p}
-                  value={f.tls_mode}
-                  onChange={(e) => set("tls_mode", e.target.value as TlsMode)}
+            {!file && (
+              <>
+                <Field label={t("connections.username")}>
+                  {(p) => (
+                    <Input
+                      {...p}
+                      autoComplete="off"
+                      value={f.username}
+                      onChange={(e) => set("username", e.target.value)}
+                    />
+                  )}
+                </Field>
+                <Field
+                  label={t("connections.password")}
+                  hint={editing ? t("connections.passwordKeep") : undefined}
                 >
-                  {TLS_MODES.map((m) => (
-                    <option key={m} value={m}>
-                      {t(`tls.${m}`)}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="password"
+                      autoComplete="new-password"
+                      value={f.password}
+                      onChange={(e) => set("password", e.target.value)}
+                    />
+                  )}
+                </Field>
+                <Field label={t("connections.tls")}>
+                  {(p) => (
+                    <Select
+                      {...p}
+                      value={f.tls_mode}
+                      onChange={(e) => set("tls_mode", e.target.value as TlsMode)}
+                    >
+                      {TLS_MODES.map((m) => (
+                        <option key={m} value={m}>
+                          {t(`tls.${m}`)}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+              </>
+            )}
             <Field label={t("connections.timeout")}>
               {(p) => (
                 <Input

@@ -9,7 +9,11 @@ import { connectionsApi } from "@/services/api";
 import type { Connection } from "@/types/api";
 
 export const workspacePath = (c: Pick<Connection, "id" | "db_type">) =>
-  `/workspace/${c.db_type === "mongodb" ? "mongo" : "sql"}/${encodeURIComponent(c.id)}`;
+  c.db_type === "redis"
+    ? `/redis/${encodeURIComponent(c.id)}`
+    : c.db_type === "elasticsearch"
+      ? `/search/${encodeURIComponent(c.id)}`
+      : `/workspace/${c.db_type === "mongodb" ? "mongo" : "sql"}/${encodeURIComponent(c.id)}`;
 
 /** `/workspace`: pick a connection to open its query workspace. */
 export function WorkspaceIndex() {
@@ -32,7 +36,13 @@ export function WorkspaceIndex() {
                 {c.name} <EnvBadge env={c.environment} />
               </p>
               <p className="text-xs text-muted-foreground">
-                {c.db_type === "mongodb" ? t("workspace.mongoTitle") : t("workspace.sqlTitle")}
+                {c.db_type === "mongodb"
+                  ? t("workspace.mongoTitle")
+                  : c.db_type === "redis"
+                    ? t("redis.title")
+                    : c.db_type === "elasticsearch"
+                      ? t("search.title")
+                      : t("workspace.sqlTitle")}
               </p>
             </Link>
           </li>

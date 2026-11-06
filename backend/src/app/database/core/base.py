@@ -20,7 +20,24 @@ class DbType(StrEnum):
     POSTGRESQL = "postgresql"
     MYSQL = "mysql"
     MARIADB = "mariadb"
+    MSSQL = "mssql"
+    CLICKHOUSE = "clickhouse"
+    SQLITE = "sqlite"
     MONGODB = "mongodb"
+    REDIS = "redis"
+    ELASTICSEARCH = "elasticsearch"
+
+
+_FAMILIES: dict[DbType, str] = {
+    DbType.MONGODB: "document",
+    DbType.REDIS: "keyvalue",
+    DbType.ELASTICSEARCH: "search",
+}
+
+
+def family_of(db_type: DbType | str) -> str:
+    """Adapter family of an engine: relational (default), document, keyvalue or search."""
+    return _FAMILIES.get(DbType(db_type), "relational")
 
 
 class TlsMode(StrEnum):

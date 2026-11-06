@@ -29,6 +29,11 @@ const ENGINE_LABEL = {
   postgresql: "PostgreSQL",
   mysql: "MySQL",
   mariadb: "MariaDB",
+  mssql: "SQL Server",
+  clickhouse: "ClickHouse",
+  sqlite: "SQLite",
+  redis: "Redis / Valkey",
+  elasticsearch: "Elasticsearch / OpenSearch",
   mongodb: "MongoDB",
 } as const;
 

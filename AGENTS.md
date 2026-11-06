@@ -169,6 +169,11 @@ Pin production container image versions (by digest where practical).
 | PostgreSQL | 14, 15, 16, 17     |                                        |
 | MySQL      | 8.0, 8.4           |                                        |
 | MariaDB    | 10.11, 11.4        | Separate adapter (ADR-0017)            |
+| SQL Server | 2019, 2022         | No read-only transactions (ADR-0018)   |
+| Redis      | 6.2, 7.4; Valkey 8 | Key-value family, standalone (ADR-0019) |
+| ClickHouse | 24.3, 24.8, 25.3   | Read and append only (ADR-0020)        |
+| SQLite     | 3.35+ (stdlib)     | Files below DBW_SQLITE_ROOT (ADR-0021) |
+| Elasticsearch | 7.17, 8.15; OpenSearch 2.17 | Search family (ADR-0022) |
 | MongoDB    | 6.0, 7.0, 8.0      | Standalone, replica set, sharded       |
 
 Every supported version must be covered by integration tests in CI.

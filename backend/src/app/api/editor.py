@@ -21,6 +21,7 @@ from app.auth.deps import AppSettings, AuthContext, CurrentAuth, DbSession
 from app.auth.permissions import Perm
 from app.connections import service as conns
 from app.connections.scope import ObjectScope
+from app.database.core.base import family_of
 from app.database.core.serialization import to_json_value
 from app.database.document.filters import (
     check_field_name,
@@ -43,7 +44,7 @@ from app.editor.guards import (
     require_all,
     require_confirmation,
 )
-from app.errors import ConfirmationRequired, Forbidden, ValidationFailed
+from app.errors import ConfirmationRequired, Forbidden, UnsupportedCapability, ValidationFailed
 from app.explorer import service as ex
 from app.governance import service as gov
 from app.models import SensitiveMarker
@@ -787,6 +788,8 @@ async def replace_markers(
     """Replace the connection's sensitive-field markers. Every entry is validated against the
     live metadata; primary-key columns cannot be marked (row keys and cursors expose them)."""
     a = await conns.require_access(db, ctx, cid, Perm.CONNECTION_EDIT)
+    if family_of(a.connection.db_type) not in ("relational", "document"):
+        raise UnsupportedCapability("Sensitive-field markers are not available for this engine.")
     is_doc = a.connection.db_type == "mongodb"
     _, adapter2 = await conns.open_adapter(
         db, ctx, settings, cid, Perm.CONNECTION_EDIT, "document" if is_doc else "relational"

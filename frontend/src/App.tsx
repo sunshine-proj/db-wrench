@@ -63,6 +63,12 @@ const WorkspaceIndex = lazy(() =>
 const SqlWorkspace = lazy(() =>
   import("@/features/sql-workspace/SqlWorkspace").then((m) => ({ default: m.SqlWorkspace })),
 );
+const RedisWorkspace = lazy(() =>
+  import("@/features/redis/RedisWorkspace").then((m) => ({ default: m.RedisWorkspace })),
+);
+const SearchWorkspace = lazy(() =>
+  import("@/features/search/SearchWorkspace").then((m) => ({ default: m.SearchWorkspace })),
+);
 const MongoWorkspace = lazy(() =>
   import("@/features/mongo-workspace/MongoWorkspace").then((m) => ({ default: m.MongoWorkspace })),
 );
@@ -116,6 +122,8 @@ export function App() {
               <Route path="access" element={<PrincipalsPage />} />
             </Route>
           </Route>
+          <Route path="redis/:cid" element={<RedisWorkspace />} />
+          <Route path="search/:cid" element={<SearchWorkspace />} />
           <Route path="workspace">
             <Route index element={<WorkspaceIndex />} />
             <Route path="sql/:cid" element={<SqlWorkspace />} />

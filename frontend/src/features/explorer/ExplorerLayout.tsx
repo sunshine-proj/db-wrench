@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, Outlet, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, Outlet, useNavigate, useParams } from "react-router-dom";
 import { EnvBanner } from "@/components/EnvBadge";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { Select } from "@/components/ui/form";
@@ -65,6 +65,10 @@ export function ExplorerLayout() {
         <Alert variant="destructive" title={t("explorer.notFound")} />
       </div>
     );
+  if (connection.db_type === "elasticsearch")
+    return <Navigate to={`/search/${encodeURIComponent(cid)}`} replace />;
+  if (connection.db_type === "redis")
+    return <Navigate to={`/redis/${encodeURIComponent(cid)}`} replace />;
   if (!connection.enabled || !canOn(connection, "metadata.view")) {
     return (
       <div className="p-6">

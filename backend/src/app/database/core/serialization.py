@@ -73,3 +73,25 @@ def approx_size(value: Any) -> int:
     if isinstance(value, list):
         return sum(approx_size(v) for v in value)
     return 16
+
+
+def encode_opaque(raw: bytes) -> str:
+    """URL-safe, unpadded base64: ids (document ids, keys) that may contain any character."""
+    import base64
+
+    return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+def decode_opaque(token: str, *, max_len: int = 4096) -> bytes:
+    import base64
+    import binascii
+
+    from app.errors import ValidationFailed
+
+    if not token or len(token) > max_len:
+        raise ValidationFailed("Invalid identifier.")
+    std = token.replace("-", "+").replace("_", "/")
+    try:
+        return base64.b64decode(std + "=" * (-len(std) % 4), validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValidationFailed("Invalid identifier.") from exc

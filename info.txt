@@ -178,9 +178,38 @@ I'd do SQL Server next. Say if you want me to continue, or review and commit the
 
 
 
+All five remaining engines are implemented: SQL Server, Redis/Valkey, ClickHouse, SQLite, and Elasticsearch/OpenSearch. Nothing is committed, and git status shows 63 changed or new files.
+
+The second full backend run finished with 1,491 passed, 7 skipped and 0 failed. The first run had one failure, in the SQLite timeout/cancel test. It passed in 8 isolated runs, including under CPU load, and in the second full run, so I couldn't reproduce it and don't know the cause.
+
+Ruff, mypy, tsc, eslint and prettier are clean, and the frontend has 197 passing tests. The new screens are covered only by those component tests. I didn't run them in a real browser, and the CI workflows haven't run on GitHub.
+
+Each engine ran against real containers in these versions:
+
+Engine	Versions tested	Read-only boundary
+SQL Server	2019, 2022	Weakest: rollback-only plus a strict token gate, because SQL Server has no read-only transactions. The docs say to use a least-privilege login.
+Redis / Valkey	Redis 6.2 and 7.x, Valkey 8	Command allowlist, plus a check of each command against the server's own command flags. An ACL-limited account is the real boundary.
+ClickHouse	24.3, 24.8, 25.3	Strongest: the server's readonly=1 setting. It refuses inserts, DDL and url()/file() tables.
+SQLite	stdlib	mode=ro plus an authorizer that blocks ATTACH, file functions and unsafe pragmas.
+Elasticsearch / OpenSearch	ES 7.17 and 8.15, OpenSearch 2.17	The console can only call _search, and a validator rejects scripts and lookups into other indices. A read-only role on the account is still recommended.
+Redis and Elasticsearch each got a new adapter family, as AGENTS.md §2.2 requires, with their own API routes and UI. SQLite is off until an admin sets DBW_SQLITE_ROOT, and connections can only name existing files inside that directory.
+
+Things you should know:
+
+ClickHouse is append-only. Row edits, bulk edits, import and database/index administration are refused; you use SQL for those.
+Elasticsearch browsing is capped. Paging stops after the first 10,000 matches, and there is no cancellation.
+Redis edits replace whole values. Streams and binary values are read-only.
+SQL Server rejects verify-ca and verify-full TLS with an explicit error instead of skipping verification.
+The MariaDB work from earlier is part of this change set. I also added two dependencies, pymssql and redis (both locked in uv.lock). ClickHouse and Elasticsearch use httpx, which was already there.
+
+Docs and CI: ADRs 0017–0022 cover the decisions above, and STATUS, PRD, README, AGENTS.md, docs/operations.md and docs/openapi.json are updated. The CI matrix lists the tested versions of every engine.
+
+Do you want me to commit this, and if so as one commit or one per engine? I'd also suggest a quick browser pass over the new screens before release.
 
 
 
+
+=========================================================
 
 
 

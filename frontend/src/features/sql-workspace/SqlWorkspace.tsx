@@ -26,6 +26,13 @@ interface PendingConfirm {
   destructive: boolean;
 }
 
+/** Monaco language used for a relational engine (it only affects highlighting). */
+export function editorLanguage(dbType: string): "pgsql" | "mysql" | "sql" {
+  if (dbType === "mysql" || dbType === "mariadb") return "mysql";
+  if (dbType === "postgresql") return "pgsql";
+  return "sql";
+}
+
 export function SqlWorkspace() {
   const { cid = "" } = useParams();
   const qc = useQueryClient();
@@ -48,7 +55,8 @@ export function SqlWorkspace() {
   });
   const schema = hasSchemas
     ? (tabs.active.schema ??
-      (schemas.data?.some((s) => s.name === "public") ? "public" : schemas.data?.[0]?.name))
+      schemas.data?.find((s) => s.name === "public" || s.name === "dbo")?.name ??
+      schemas.data?.[0]?.name)
     : undefined;
 
   const [result, setResult] = useState<SqlExecuteResult | null>(null);
@@ -286,9 +294,7 @@ export function SqlWorkspace() {
           <LazyEditor
             value={sql}
             onChange={(v) => tabs.update({ text: v })}
-            language={
-              connection.db_type === "mysql" || connection.db_type === "mariadb" ? "mysql" : "pgsql"
-            }
+            language={editorLanguage(connection.db_type)}
             ariaLabel={t("workspace.editor")}
             onRun={() => void run()}
           />

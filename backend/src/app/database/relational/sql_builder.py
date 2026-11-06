@@ -31,7 +31,8 @@ MAX_VALUE_CHARS = 4096
 KEYSET_SAFE_PREFIXES = (
     "smallint", "integer", "int", "bigint", "tinyint", "mediumint", "serial", "bigserial",
     "numeric", "decimal", "text", "character", "varchar", "char", "citext", "uuid",
-    "date", "timestamp", "datetime", "time",
+    "date", "timestamp", "datetime", "time", "nvarchar", "nchar", "uniqueidentifier",
+    "datetime2", "smalldatetime",
 )  # fmt: skip
 
 
@@ -54,6 +55,30 @@ class Dialect:
     def null_safe_eq(self, col_sql: str) -> str:
         return f"{col_sql} IS NOT DISTINCT FROM %s"
 
+    # -- hooks for dialects whose paging / row-value syntax differs (SQL Server) -------------
+
+    def like_expr(self, col_sql: str) -> str:
+        """``col LIKE %s`` with the backslash escaping used by ``escape_like``."""
+        return f"{col_sql} {self.like_op} %s"
+
+    def limit_sql(self, *, ordered: bool, limit: int, offset: int = 0) -> str:
+        """Suffix appended after ORDER BY (``ordered`` tells whether one was emitted)."""
+        sql = f" LIMIT {int(limit)}"
+        if offset:
+            sql += f" OFFSET {int(offset)}"
+        return sql
+
+    def keyset_after(self, pk: list[str], values: list[Any]) -> tuple[str, list[Any]]:
+        """Condition selecting rows strictly after the given primary-key tuple."""
+        if len(pk) == 1:
+            return f"{self.quote(pk[0])} > %s", list(values)
+        cols = ", ".join(self.quote(c) for c in pk)
+        return f"({cols}) > ({', '.join(['%s'] * len(pk))})", list(values)
+
+    def capped_count(self, inner_from_where: str, cap: int) -> str:
+        """``COUNT(*)`` limited to ``cap + 1`` rows; ``inner_from_where`` is ``FROM ... WHERE``."""
+        return f"SELECT COUNT(*) FROM (SELECT 1 {inner_from_where} LIMIT {int(cap) + 1}) AS capped"  # noqa: S608
+
     def text(self, col_sql: str) -> str:
         return f"CAST({col_sql} AS {self.text_type})"
 
@@ -71,6 +96,66 @@ class MySQLDialect(Dialect):
 
     quote_char = "`"
     text_type = "CHAR"
+
+
+class MSSQLDialect(Dialect):
+    """T-SQL: ``[bracket]`` quoting, ``OFFSET .. FETCH`` paging, no row-value comparison."""
+
+    name = "mssql"
+    text_type = "NVARCHAR(MAX)"
+
+    def quote(self, ident: str) -> str:
+        if not ident or "\x00" in ident:
+            raise ValidationFailed("Invalid identifier.")
+        return ("[" + ident.replace("]", "]]") + "]").replace("%", "%%")
+
+    def null_safe_eq(self, col_sql: str) -> str:
+        # INTERSECT compares NULLs as equal and takes a single bound value.
+        return f"EXISTS (SELECT {col_sql} INTERSECT SELECT %s)"
+
+    def limit_sql(self, *, ordered: bool, limit: int, offset: int = 0) -> str:
+        head = "" if ordered else " ORDER BY (SELECT NULL)"
+        return f"{head} OFFSET {int(offset)} ROWS FETCH NEXT {int(limit)} ROWS ONLY"
+
+    def keyset_after(self, pk: list[str], values: list[Any]) -> tuple[str, list[Any]]:
+        q = [self.quote(c) for c in pk]
+        clauses: list[str] = []
+        params: list[Any] = []
+        for i, col in enumerate(q):
+            eq = [f"{q[j]} = %s" for j in range(i)]
+            clauses.append("(" + " AND ".join([*eq, f"{col} > %s"]) + ")")
+            params.extend([*values[:i], values[i]])
+        return "(" + " OR ".join(clauses) + ")", params
+
+    def capped_count(self, inner_from_where: str, cap: int) -> str:
+        top = int(cap) + 1
+        return f"SELECT COUNT(*) FROM (SELECT TOP ({top}) 1 AS x {inner_from_where}) AS capped"  # noqa: S608
+
+
+class ClickHouseDialect(Dialect):
+    """ClickHouse: backtick identifiers (backslash escapes), ILIKE, no row identity."""
+
+    name = "clickhouse"
+    quote_char = "`"
+    like_op = "ILIKE"
+    text_type = "String"
+
+    def quote(self, ident: str) -> str:
+        if not ident or "\x00" in ident:
+            raise ValidationFailed("Invalid identifier.")
+        return ("`" + ident.replace("\\", "\\\\").replace("`", "\\`") + "`").replace("%", "%%")
+
+
+class SQLiteDialect(Dialect):
+    name = "sqlite"
+    text_type = "TEXT"
+
+    def null_safe_eq(self, col_sql: str) -> str:
+        return f"{col_sql} IS %s"  # SQLite's IS compares NULLs as equal
+
+    def like_expr(self, col_sql: str) -> str:
+        # SQLite has no default escape character: say it is the backslash used by escape_like.
+        return f"{col_sql} LIKE %s ESCAPE '\\'"
 
 
 class MariaDBDialect(MySQLDialect):
@@ -168,7 +253,7 @@ def build_where(
                 "starts_with": f"{esc}%",
                 "ends_with": f"%{esc}",
             }[f.op]
-            where.append(f"{d.text(col)} {d.like_op} %s")
+            where.append(d.like_expr(d.text(col)))
             params.append(pattern)
         else:
             v = _scalar(f.value, "filter")
@@ -184,7 +269,7 @@ def build_where(
             raise ValidationFailed("search_columns is required when search is used.")
         cols = [need(c, "search") for c in search_columns][:20]
         like = f"%{escape_like(str(term))}%"
-        ors = [f"{d.text(d.quote(c))} {d.like_op} %s" for c in cols]
+        ors = [d.like_expr(d.text(d.quote(c))) for c in cols]
         where.append("(" + " OR ".join(ors) + ")")
         params.extend([like] * len(cols))
     return where, params
@@ -235,10 +320,10 @@ def build_export_select(  # noqa: PLR0913
 def build_capped_count(
     d: Dialect, ns: str | None, st: TableStructure, where: list[str], cap: int
 ) -> str:
-    inner = f"SELECT 1 FROM {d.qualified(ns, st.name)}"  # noqa: S608
+    inner = f"FROM {d.qualified(ns, st.name)}"
     if where:
         inner += " WHERE " + " AND ".join(where)
-    return f"SELECT COUNT(*) FROM ({inner} LIMIT {int(cap) + 1}) AS capped"  # noqa: S608
+    return d.capped_count(inner, cap)
 
 
 def keyset_eligible(st: TableStructure) -> bool:
@@ -288,13 +373,9 @@ def build_select(  # noqa: PLR0912, PLR0915
             vals = [_scalar(k, "cursor") for k in keys]
             if any(v is None for v in vals):
                 raise ValidationFailed("Invalid cursor.")
-            if len(pk) == 1:
-                where.append(f"{d.quote(pk[0])} > %s")
-            else:
-                where.append(
-                    f"({', '.join(d.quote(c) for c in pk)}) > ({', '.join(['%s'] * len(pk))})"
-                )
-            params.extend(vals)
+            cond, cond_params = d.keyset_after(pk, vals)
+            where.append(cond)
+            params.extend(cond_params)
         hidden = [c for c in pk if c not in visible]
     else:
         hidden = [c for c in pk if c not in visible]
@@ -331,9 +412,9 @@ def build_select(  # noqa: PLR0912, PLR0915
         sql += " WHERE " + " AND ".join(where)
     if order:
         sql += " ORDER BY " + ", ".join(order)
-    sql += f" LIMIT {int(limit) + 1}"
-    if pagination != "keyset" and offset:
-        sql += f" OFFSET {int(offset)}"
+    sql += d.limit_sql(
+        ordered=bool(order), limit=int(limit) + 1, offset=offset if pagination != "keyset" else 0
+    )
 
     pk_positions = [select_cols.index(c) for c in pk]
     if limit < limit_req:

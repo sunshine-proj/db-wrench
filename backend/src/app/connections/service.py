@@ -25,6 +25,7 @@ from app.database.core.base import (
     DbType,
     Limits,
     TlsMode,
+    family_of,
 )
 from app.database.core.manager import get_adapter_manager
 from app.database.document.base import DocumentAdapter
@@ -54,6 +55,11 @@ DEFAULT_PORTS = {
     DbType.POSTGRESQL: 5432,
     DbType.MYSQL: 3306,
     DbType.MARIADB: 3306,
+    DbType.MSSQL: 1433,
+    DbType.CLICKHOUSE: 8123,
+    DbType.SQLITE: 0,
+    DbType.REDIS: 6379,
+    DbType.ELASTICSEARCH: 9200,
     DbType.MONGODB: 27017,
 }
 
@@ -332,10 +338,14 @@ async def open_adapter(
     conn = access.connection
     if not conn.enabled:
         raise Conflict("This connection is disabled.")
-    if family == "relational" and DbType(conn.db_type) == DbType.MONGODB:
-        raise UnsupportedCapability("This is a MongoDB connection; use the /mongo endpoints.")
-    if family == "document" and DbType(conn.db_type) != DbType.MONGODB:
-        raise UnsupportedCapability("MongoDB endpoints require a MongoDB connection.")
+    actual = family_of(conn.db_type)
+    if actual != family:
+        hint = {
+            "document": "use the /mongo endpoints",
+            "keyvalue": "use the /redis endpoints",
+            "search": "use the /search endpoints",
+        }.get(actual, "use the relational endpoints")
+        raise UnsupportedCapability(f"This is a {actual} connection; {hint}.")
     policy = await get_network_policy(db, settings)
     spec = await spec_for(db, ctx, conn)
     adapter = get_adapter_manager().get(spec, policy, Limits.from_settings(settings))
@@ -365,8 +375,11 @@ async def create_connection(
 ) -> Connection:
     if (await db.execute(select(Connection).where(Connection.name == data["name"]))).first():
         raise Conflict("A connection with this name already exists.")
-    policy = await get_network_policy(db, settings)
-    await check_destination(policy, data["host"], data["port"])
+    if data.get("db_type") == DbType.SQLITE.value:
+        await _normalise_sqlite(data)
+    else:
+        policy = await get_network_policy(db, settings)
+        await check_destination(policy, data["host"], data["port"])
     conn = Connection(id=uuid.uuid4(), created_by=ctx.user.id, secret="", **data)
     conn.secret = get_envelope().encrypt_json({"password": password}, f"connection:{conn.id}")
     db.add(conn)
@@ -394,7 +407,11 @@ async def update_connection(
         raise Conflict("A connection with this name already exists.")
     host = changes.get("host", conn.host)
     port = changes.get("port", conn.port)
-    if host != conn.host or port != conn.port:
+    if conn.db_type == DbType.SQLITE.value:
+        if "database" in changes:
+            await _normalise_sqlite({"database": changes["database"]})
+        changes = {k: v for k, v in changes.items() if k not in ("host", "port", "tls_mode")}
+    elif host != conn.host or port != conn.port:
         policy = await get_network_policy(db, settings)
         await check_destination(policy, host, port)
     changed: list[str] = []
@@ -408,6 +425,16 @@ async def update_connection(
     conn.updated_at = utcnow()
     get_adapter_manager().invalidate(conn.id)
     return changed
+
+
+async def _normalise_sqlite(data: dict[str, Any]) -> None:
+    """A SQLite connection names a file below the administrator's root; there is no network
+    destination, so host/port/TLS are fixed placeholders and the path is validated now."""
+    from app.database.adapters.sqlite import resolve_db_path
+
+    await run_blocking(resolve_db_path, data.get("database"))
+    if "host" in data:
+        data.update(host="local-file", port=1, tls_mode=TlsMode.DISABLE.value, tls_ca=None)
 
 
 async def delete_connection(db: AsyncSession, conn: Connection) -> None:

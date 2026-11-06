@@ -14,6 +14,7 @@ x-backend-prod-env: &backend-prod-env
   DBW_ENCRYPTION_KEYS_FILE: /run/secrets/encryption_keys
   DBW_NETWORK_ALLOW_CIDRS: ${DBW_NETWORK_ALLOW_CIDRS:-["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16","fc00::/7"]}
   DBW_METRICS_ENABLED: ${DBW_METRICS_ENABLED:-false}
+  DBW_SQLITE_ROOT: ${DBW_SQLITE_ROOT:-}
 
 services:
   db:

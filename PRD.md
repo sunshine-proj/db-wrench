@@ -61,6 +61,11 @@ Initial supported engines and versions:
 | PostgreSQL | 14, 15, 16, 17 | Full planned support | Highest  |
 | MySQL      | 8.0, 8.4       | Full planned support | High     |
 | MariaDB    | 10.11, 11.4    | Full planned support | High     |
+| SQL Server | 2019, 2022     | Full planned support | Medium   |
+| Redis      | 6.2, 7.4, Valkey 8 | Full planned support | Medium |
+| ClickHouse | 24.3, 24.8, 25.3 | Browse, query, append | Medium |
+| SQLite     | 3.35+          | Files below an admin-set root | Low |
+| Elasticsearch | 7.17, 8.15, OpenSearch 2.17 | Browse, edit, search | Low |
 | MongoDB    | 6.0, 7.0, 8.0  | Full planned support | High     |
 
 MariaDB is not treated as MySQL; it is a separate adapter (ADR-0017). Every
@@ -70,11 +75,6 @@ The architecture should allow future adapters.
 
 Potential future databases (in planned order; see `docs/STATUS.md`):
 
-- Microsoft SQL Server
-- Redis / Valkey
-- ClickHouse
-- SQLite
-- Elasticsearch / OpenSearch
 - Oracle
 
 ## 5. Product Modules
@@ -893,7 +893,7 @@ Initial releases will not include:
 - Autonomous AI database modifications (AI-initiated writes always require a
   human approval step)
 - Multi-tenant SaaS infrastructure
-- SQL Server, Redis, ClickHouse, SQLite, Elasticsearch, and Oracle adapters
+- and Oracle adapters
 
 These may be considered later.
 

@@ -8,7 +8,7 @@ defined in PRD.md section 13 and README.md section 9.
 
 **Phase 7: MCP and AI integration** (not started). Phases 0-6 are implemented. The owner has
 authorised additional database engines (ADR-0017) as a parallel track, one engine at a time, in this
-order: MariaDB (done), Microsoft SQL Server, Redis/Valkey, ClickHouse, SQLite, Elasticsearch.
+order: MariaDB (done), Microsoft SQL Server (done), Redis/Valkey (done), ClickHouse (done), SQLite (done), Elasticsearch/OpenSearch (done). All engines on the track are implemented.
 
 ## Phase checklist
 
@@ -28,11 +28,11 @@ order: MariaDB (done), Microsoft SQL Server, Redis/Valkey, ClickHouse, SQLite, E
 | Engine                  | Family       | Status      |
 | ----------------------- | ------------ | ----------- |
 | MariaDB 10.11, 11.4     | relational   | Done        |
-| Microsoft SQL Server    | relational   | Not started |
-| Redis / Valkey          | key-value    | Not started |
-| ClickHouse              | relational   | Not started |
-| SQLite                  | relational   | Not started |
-| Elasticsearch / OpenSearch | search    | Not started |
+| Microsoft SQL Server 2019, 2022 | relational | Done  |
+| Redis 6.2, 7.4 / Valkey 8 | key-value  | Done        |
+| ClickHouse 24.3, 24.8, 25.3 | relational | Done      |
+| SQLite 3.35+ (files below DBW_SQLITE_ROOT) | relational | Done |
+| Elasticsearch 7.17, 8.15 / OpenSearch 2.17 | search | Done |
 
 ## What exists (Phases 0-6)
 
@@ -77,6 +77,28 @@ order: MariaDB (done), Microsoft SQL Server, Redis/Valkey, ClickHouse, SQLite, E
   timeout, read-only, account and `JSON` handling; full parity with MySQL (explorer, editor, export,
   import, SQL workspace, administration, users and privileges), 10.11 and 11.4 in the CI matrix.
   Numeric key/expected values are now type-checked in the editor for every relational engine.
+- **Microsoft SQL Server (ADR-0018):** database -> schema -> table explorer, browser with keyset
+  paging, editor, export, SQL workspace, create/drop databases, schemas and indexes, logins and
+  privileges. No engine-level read-only transaction: rollback-only paths, a strict token gate for
+  user SQL and a recommended least-privilege login. TLS verification modes are refused, not skipped.
+- **Redis / Valkey (ADR-0019):** new key-value adapter family; database picker, SCAN-based key
+  browser (pattern and type filters, TTL), typed value viewer with paging, whole-value create /
+  replace / delete with version-checked concurrency, TTL control, and an allowlisted command
+  console whose commands are also checked against the server's own command flags. Standalone
+  servers only; ACL-limited accounts are the recommended read-only boundary.
+- **ClickHouse (ADR-0020):** explorer, browser (offset pagination, no row identity), export, SQL
+  workspace with server-enforced `readonly=1`, typed server-side parameters, timeouts and
+  cancellation. Append-only: row edits, bulk edits, import, database/index administration and users
+  are refused (use SQL).
+- **SQLite (ADR-0021):** opt-in via `DBW_SQLITE_ROOT`; connections name a file inside it (symlink
+  and traversal safe, never created); `mode=ro` + authorizer on every connection (no `ATTACH`,
+  `VACUUM`, file functions or unsafe pragmas); browsing, editing, bulk edits, import, export, SQL
+  workspace with rollback, timeouts and same-replica cancellation, index administration.
+- **Elasticsearch / OpenSearch (ADR-0022):** new search adapter family; index list and detail
+  (fields, settings), document browser (text search, sorting, paging within the 10,000 window),
+  create / replace / delete with native `_seq_no` concurrency, create/delete index with typed
+  confirmation, and a console that can only run validated `_search` bodies (no scripts, no lookups
+  into other indices, bounded size).
 - **Frontend:** setup, login (+MFA, +SSO), account/security, dashboard, connections (+access dialog),
   explorer tree, grid and document browsers, users, roles, network policy, audit log; i18n layer;
   strict CSP; WCAG-minded markup.

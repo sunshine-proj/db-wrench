@@ -38,14 +38,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { pg: "postgres:14-alpine", mysql: "mysql:8.0", maria: "mariadb:10.11", mongo: "mongo:6.0" }
-          - { pg: "postgres:15-alpine", mysql: "mysql:8.4", maria: "mariadb:11.4", mongo: "mongo:7.0" }
-          - { pg: "postgres:16-alpine", mysql: "mysql:8.4", maria: "mariadb:11.4", mongo: "mongo:8.0" }
-          - { pg: "postgres:17.6-alpine", mysql: "mysql:8.4", maria: "mariadb:10.11", mongo: "mongo:7.0" }
+          - { pg: "postgres:14-alpine", mysql: "mysql:8.0", maria: "mariadb:10.11", mssql: "mcr.microsoft.com/mssql/server:2019-latest", redis: "redis:6.2", clickhouse: "clickhouse/clickhouse-server:24.3", es: "docker.elastic.co/elasticsearch/elasticsearch:7.17.24", mongo: "mongo:6.0" }
+          - { pg: "postgres:15-alpine", mysql: "mysql:8.4", maria: "mariadb:11.4", mssql: "mcr.microsoft.com/mssql/server:2022-latest", redis: "redis:7.4", clickhouse: "clickhouse/clickhouse-server:24.8", es: "docker.elastic.co/elasticsearch/elasticsearch:8.15.3", mongo: "mongo:7.0" }
+          - { pg: "postgres:16-alpine", mysql: "mysql:8.4", maria: "mariadb:11.4", mssql: "mcr.microsoft.com/mssql/server:2022-latest", redis: "valkey/valkey:8", clickhouse: "clickhouse/clickhouse-server:25.3", es: "opensearchproject/opensearch:2.17.1", mongo: "mongo:8.0" }
+          - { pg: "postgres:17.6-alpine", mysql: "mysql:8.4", maria: "mariadb:10.11", mssql: "mcr.microsoft.com/mssql/server:2019-latest", redis: "redis:7.4", clickhouse: "clickhouse/clickhouse-server:24.8", es: "docker.elastic.co/elasticsearch/elasticsearch:8.15.3", mongo: "mongo:7.0" }
     env:
       DBW_TEST_PG_IMAGE: ${{ matrix.pg }}
       DBW_TEST_MYSQL_IMAGE: ${{ matrix.mysql }}
       DBW_TEST_MARIADB_IMAGE: ${{ matrix.maria }}
+      DBW_TEST_MSSQL_IMAGE: ${{ matrix.mssql }}
+      DBW_TEST_REDIS_IMAGE: ${{ matrix.redis }}
+      DBW_TEST_CLICKHOUSE_IMAGE: ${{ matrix.clickhouse }}
+      DBW_TEST_ES_IMAGE: ${{ matrix.es }}
       DBW_TEST_MONGO_IMAGE: ${{ matrix.mongo }}
     defaults: { run: { working-directory: backend } }
     steps:

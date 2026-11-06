@@ -1,4 +1,13 @@
-export type DbType = "postgresql" | "mysql" | "mariadb" | "mongodb";
+export type DbType =
+  | "postgresql"
+  | "mysql"
+  | "mariadb"
+  | "mssql"
+  | "clickhouse"
+  | "sqlite"
+  | "redis"
+  | "elasticsearch"
+  | "mongodb";
 export type Environment = "production" | "staging" | "development" | "other";
 export type TlsMode = "disable" | "require" | "verify-ca" | "verify-full";
 
@@ -68,7 +77,7 @@ export interface DirectoryUser {
 }
 
 export interface Capabilities {
-  family: "relational" | "document";
+  family: "relational" | "document" | "keyvalue" | "search";
   engine: string;
   supports_schemas: boolean;
   supports_views: boolean;
@@ -642,4 +651,111 @@ export interface MongoRole {
   builtin: boolean;
   roles: MongoRoleRef[];
   privileges: MongoPrivilege[];
+}
+
+// ------------------------------------------------------------------ Redis (key-value family)
+
+export type RedisKeyType = "string" | "hash" | "list" | "set" | "zset" | "stream";
+
+export interface RedisDatabase {
+  index: number;
+  name: string;
+  keys: number;
+  expires: number;
+}
+
+export interface RedisKeyInfo {
+  key: string;
+  name: string;
+  type: RedisKeyType;
+  ttl_ms: number | null;
+  binary: boolean;
+}
+
+export interface RedisKeyPage {
+  keys: RedisKeyInfo[];
+  limit: number;
+  next_cursor: string | null;
+  total_estimate: number | null;
+  truncated: boolean;
+  warnings: string[];
+}
+
+export interface RedisValuePage {
+  value: unknown;
+  next_cursor: string | null;
+  length: number | null;
+  truncated: boolean;
+}
+
+export interface RedisKeyDetail {
+  key: string;
+  name: string;
+  type: RedisKeyType;
+  ttl_ms: number | null;
+  encoding: string | null;
+  size_bytes: number | null;
+  version: string;
+  editable: boolean;
+  binary: boolean;
+  value: RedisValuePage;
+}
+
+export interface RedisCommandResult {
+  reply: unknown;
+  truncated: boolean;
+  elapsed_ms: number;
+  command: string;
+  kind: "read" | "write";
+}
+
+// ------------------------------------------------------------------ Elasticsearch (search family)
+
+export interface SearchIndex {
+  name: string;
+  health: string | null;
+  status: string | null;
+  docs: number | null;
+  size_bytes: number | null;
+  primaries: number | null;
+  replicas: number | null;
+  aliases: string[];
+}
+
+export interface SearchIndexDetail {
+  name: string;
+  fields: { path: string; type: string }[];
+  settings: Record<string, unknown>;
+  aliases: string[];
+  docs: number | null;
+  size_bytes: number | null;
+}
+
+export interface SearchDoc {
+  key: string;
+  id: string;
+  source: Record<string, unknown>;
+  score: number | null;
+  seq_no: number | null;
+  primary_term: number | null;
+  sort: unknown[] | null;
+}
+
+export interface SearchPage {
+  hits: SearchDoc[];
+  total: number | null;
+  total_relation: "eq" | "gte";
+  took_ms: number;
+  offset: number;
+  size: number;
+  next_cursor: string | null;
+  truncated: boolean;
+  timed_out: boolean;
+  warnings: string[];
+}
+
+export interface SearchResult {
+  body: Record<string, unknown>;
+  took_ms: number;
+  truncated: boolean;
 }

@@ -18,6 +18,7 @@ from app.audit import service as audit
 from app.auth.deps import AppSettings, AuthContext, CurrentAuth, DbSession
 from app.auth.permissions import Perm
 from app.connections import service as conns
+from app.database.core.base import family_of
 from app.database.core.serialization import approx_size, to_json_value
 from app.database.document.filters import (
     parse_json,
@@ -320,7 +321,7 @@ async def cancel_query(
 
 
 def _family_of(conn: Any) -> str:
-    return "document" if conn.db_type == "mongodb" else "relational"
+    return family_of(conn.db_type)
 
 
 # ---------------------------------------------------------------------------- SQL export

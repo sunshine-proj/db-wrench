@@ -5,6 +5,8 @@
 import * as monaco from "monaco-editor/editor/editor.api";
 import "monaco-editor/languages/definitions/pgsql/register";
 import "monaco-editor/languages/definitions/mysql/register";
+import "monaco-editor/languages/definitions/sql/register";
+import "monaco-editor/languages/definitions/redis/register";
 import "monaco-editor/language/json/monaco.contribution";
 import EditorWorker from "monaco-editor/editor/editor.worker?worker";
 import JsonWorker from "monaco-editor/language/json/json.worker?worker";

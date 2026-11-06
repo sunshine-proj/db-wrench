@@ -121,7 +121,8 @@ class Connection(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(120), unique=True)
-    db_type: Mapped[str] = mapped_column(String(20))  # postgresql | mysql | mariadb | mongodb
+    # postgresql | mysql | mariadb | mssql | clickhouse | sqlite | redis | elasticsearch | mongodb
+    db_type: Mapped[str] = mapped_column(String(20))
     environment: Mapped[str] = mapped_column(String(20), default="development")
     host: Mapped[str] = mapped_column(String(255))
     port: Mapped[int] = mapped_column(Integer)
